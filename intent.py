@@ -984,7 +984,7 @@ def _strip_health_metric_note(body: str, health_type: str) -> str:
         value = re.sub(r"^\d+(?:\.\d+)?\s*(?:小时|h|H)?", "", value).strip(SEPARATORS)
     elif health_type == "跑步":
         value = re.sub(r"\d+(?:\.\d+)?\s*(?:公里|km|KM)", "", value).strip(SEPARATORS)
-        value = re.sub(r"\d+(?:\.\d+)?\s*(?:分钟|分|min|MIN)", "", value).strip(SEPARATORS)
+        value = _strip_duration_expression(value).strip(SEPARATORS)
     else:
         value = re.sub(r"^\d+(?:\.\d+)?\s*(?:分钟|分|min|MIN)?", "", value).strip(SEPARATORS)
     return value
@@ -1042,6 +1042,21 @@ def _extract_unit_number(text: str, units: tuple[str, ...]) -> float | None:
 
 def _extract_duration_minutes(text: str) -> float | None:
     value = str(text or "")
+    minute_second_match = re.search(
+        r"(?<!\d)(\d{1,3})\s*(?:m|M|分|分钟)\s*(\d{1,2})\s*(?:s|S|秒)(?![a-zA-Z])",
+        value,
+    )
+    if minute_second_match:
+        return float(minute_second_match.group(1)) + float(minute_second_match.group(2)) / 60
+
+    colon_match = re.search(r"(?<!\d)(\d{1,3})\s*[:：]\s*(\d{1,2})(?!\d)", value)
+    if colon_match:
+        return float(colon_match.group(1)) + float(colon_match.group(2)) / 60
+
+    compact_minute_match = re.search(r"(?<!\d)(\d{1,3})\s*(?:m|M)(?![a-zA-Z])", value)
+    if compact_minute_match:
+        return float(compact_minute_match.group(1))
+
     hour_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:小时|h|H)", value)
     minute_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:分钟|分|min|MIN)", value)
     minutes = 0.0
@@ -1053,6 +1068,15 @@ def _extract_duration_minutes(text: str) -> float | None:
         minutes += float(minute_match.group(1))
         found = True
     return minutes if found else None
+
+
+def _strip_duration_expression(value: str) -> str:
+    text = str(value or "")
+    text = re.sub(r"(?<!\d)\d{1,3}\s*(?:m|M|分|分钟)\s*\d{1,2}\s*(?:s|S|秒)(?![a-zA-Z])", "", text)
+    text = re.sub(r"(?<!\d)\d{1,3}\s*[:：]\s*\d{1,2}(?!\d)", "", text)
+    text = re.sub(r"(?<!\d)\d{1,3}\s*(?:m|M)(?![a-zA-Z])", "", text)
+    text = re.sub(r"\d+(?:\.\d+)?\s*(?:分钟|分|min|MIN)", "", text)
+    return text
 
 
 def _extract_tags(text: str) -> list[str]:
