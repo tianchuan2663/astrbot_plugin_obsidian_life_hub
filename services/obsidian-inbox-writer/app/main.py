@@ -93,7 +93,7 @@ class LifePlanRequest(LifeBaseRequest):
     plan_folder: str = Field(default="待办", min_length=1, max_length=80)
     title: str = Field(min_length=1, max_length=160)
     content: str = Field(min_length=1, max_length=20000)
-    plan_scope: str = Field(default="近期", min_length=1, max_length=40)
+    plan_scope: str = Field(default="其它", min_length=1, max_length=40)
     priority: str = Field(default="中", min_length=1, max_length=40)
     status: str = Field(default="未开始", min_length=1, max_length=40)
     target_date: str | None = Field(default=None, max_length=20)
