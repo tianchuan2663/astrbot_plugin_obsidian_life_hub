@@ -71,6 +71,9 @@ class CoreTests(unittest.TestCase):
         command_lines = [line.strip() for line in main_text.splitlines() if line.strip().startswith("@filter.command(")]
 
         self.assertEqual(command_lines, ['@filter.command("查看触发词")'])
+        self.assertNotIn("管理行为", main_text)
+        self.assertNotIn("| 想做什么 |", main_text)
+        self.assertIn("assistant_display_name} 触发词", main_text)
 
     def test_schema_hides_legacy_config_keys(self):
         schema = json.loads((REPO_ROOT / "_conf_schema.json").read_text(encoding="utf-8"))
@@ -85,12 +88,46 @@ class CoreTests(unittest.TestCase):
             "owner_display_name",
             "auto_record_mode",
             "diary_draft_time",
+            "assistant_display_name",
+            "diary_folder",
+            "notes_folder",
+            "finance_folder",
+            "plan_folder",
+            "health_folder",
+            "summary_folder",
+            "enable_auto_record",
+            "enable_inbox",
+            "inbox_require_admin",
+            "inbox_allowed_sender_ids",
+            "enable_diary",
+            "enable_notes",
+            "enable_finance",
+            "enable_plans",
+            "enable_health",
+            "enable_daily_summary",
+            "enable_morning_briefing",
+            "write_briefing_to_obsidian",
+            "auto_polish",
+            "timeout_seconds",
         ):
             self.assertNotIn(key, schema)
 
-        self.assertIn("enable_native_future_task_bridge", schema)
-        self.assertIn("push_target_session", schema)
-        self.assertIn("daily_summary_time", schema)
+        for key in (
+            "enabled",
+            "writer_base_url",
+            "writer_token",
+            "life_root_folder",
+            "enable_native_future_task_bridge",
+            "include_conversations_in_summaries",
+            "currency_symbol",
+            "monthly_budget",
+            "enable_scheduler",
+            "push_target_session",
+            "daily_summary_time",
+            "amap_weather_key",
+            "weather_city_name",
+        ):
+            self.assertIn(key, schema)
 
     def test_config_reads_inbox_sender_allowlist(self):
         config = LifePluginConfig.from_astrbot_config({"inbox_allowed_sender_ids": "a,b\nc"})

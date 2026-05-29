@@ -119,21 +119,20 @@ Obsidian状态
 
 ## 配置页说明
 
+配置页只保留高频选项，低频高级项继续由默认值托管；已有配置文件中的隐藏字段仍会被读取，不会失效。
+
 | 分组 | 配置项 | 作用 |
 |---|---|---|
-| 基础 | `assistant_display_name` | 回复中展示的助手名称。 |
-| 基础 | `currency_symbol`、`monthly_budget` | 财务展示货币符号和月预算。 |
-| writer | `writer_base_url`、`writer_token`、`timeout_seconds` | 连接 writer 服务。 |
-| 目录 | `life_root_folder`、`diary_folder`、`notes_folder`、`finance_folder`、`plan_folder`、`health_folder`、`summary_folder` | 控制 Obsidian 中的中文目录结构。 |
-| 功能开关 | `enable_auto_record` | 是否启用明确触发词记录。 |
-| 功能开关 | `enable_inbox` | 是否启用 `记 / 收集 / 存一下` 原始收集。 |
-| 功能开关 | `enable_diary`、`enable_notes`、`enable_finance`、`enable_plans`、`enable_health` | 分别控制日记、笔记、财务、计划、健康模块。 |
-| 功能开关 | `enable_native_future_task_bridge` | 是否把 `提醒我...` 桥接到 AstrBot 原生 future task。 |
-| 总结 | `enable_daily_summary`、`include_conversations_in_summaries` | 控制今日总结，以及是否把普通聊天片段纳入总结参考。 |
-| 晨报 | `enable_morning_briefing`、`write_briefing_to_obsidian` | 控制晨报生成与是否写入 Obsidian。 |
-| 定时 | `enable_scheduler`、`morning_briefing_time`、`evening_checkin_time`、`daily_summary_time`、`weekly_summary_day`、`weekly_summary_time` | 控制定时推送时间。 |
-| 天气 | `amap_weather_key`、`amap_weather_city`、`weather_city_name` | 控制晨报天气来源和城市显示。 |
+| 连接 | `writer_base_url`、`writer_token` | 连接配套 writer 服务。 |
+| Obsidian | `life_root_folder` | 设置生活记录写入的根目录，默认 `生活`。 |
+| 提醒 | `enable_native_future_task_bridge` | 控制 `提醒我...` 是否桥接到 AstrBot 原生 future task。 |
+| 总结 | `include_conversations_in_summaries` | 控制今日总结是否参考普通聊天片段。 |
+| 财务 | `currency_symbol`、`monthly_budget` | 控制财务展示货币符号和月预算。 |
+| 定时 | `enable_scheduler`、`push_target_session`、`morning_briefing_time`、`evening_checkin_time`、`daily_summary_time`、`weekly_summary_day`、`weekly_summary_time` | 控制晨报、晚间询问、今日总结和周报。 |
+| 天气 | `amap_weather_key`、`amap_weather_city`、`weather_city_name` | 控制晨报天气来源和中文城市显示。 |
+| 回复 | `reply_on_success` | 控制写入成功后是否回复路径。 |
 
+高级配置仍可在配置 JSON 中手动设置，例如 `diary_folder`、`notes_folder`、`finance_folder`、`enable_finance`、`enable_plans`、`timeout_seconds` 等。
 ## 总指令
 
 AstrBot 管理行为里只会看到一个插件指令：
@@ -142,7 +141,7 @@ AstrBot 管理行为里只会看到一个插件指令：
 查看触发词
 ```
 
-这个指令会在聊天中展示完整触发词表和示例。插件内部会兼容少量旧帮助词，但公开使用时建议统一使用 `查看触发词`。
+这个指令会在聊天中展示简洁触发词卡片。完整教程请看下方“常用触发词”和文档。
 
 ## 常用触发词
 
