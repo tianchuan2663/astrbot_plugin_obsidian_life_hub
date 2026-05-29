@@ -32,6 +32,9 @@ NO_BODY_TRIGGERS = {
     "今日备忘",
     "近期备忘",
     "我的备忘",
+    "今日待办",
+    "近期待办",
+    "我的待办",
     "今日财务",
     "本周财务",
     "本月财务",
@@ -93,6 +96,9 @@ TRIGGERS = (
     "今日备忘",
     "近期备忘",
     "我的备忘",
+    "今日待办",
+    "近期待办",
+    "我的待办",
     "今日财务",
     "本周财务",
     "本月财务",
@@ -264,16 +270,19 @@ def classify_auto_record(message: str, *, mode: str = "explicit") -> AutoRecordI
             content=query_scope,
             trigger=parsed.trigger,
         )
-    if parsed.trigger in {"今日备忘", "近期备忘", "我的备忘"}:
+    if parsed.trigger in {"今日备忘", "近期备忘", "我的备忘", "今日待办", "近期待办", "我的待办"}:
         query_scope = {
             "今日备忘": "today",
             "近期备忘": "soon",
             "我的备忘": "all",
+            "今日待办": "today",
+            "近期待办": "soon",
+            "我的待办": "all",
         }[parsed.trigger]
         return AutoRecordIntent(
-            kind="reminder_query",
+            kind="todo_query" if "待办" in parsed.trigger else "reminder_query",
             confidence=1.0,
-            reason="explicit_reminder_query_trigger",
+            reason="explicit_todo_query_trigger" if "待办" in parsed.trigger else "explicit_reminder_query_trigger",
             content=query_scope,
             trigger=parsed.trigger,
         )
@@ -911,25 +920,26 @@ def _parse_quote_fields(body: str) -> tuple[str, str, str, list[str], str]:
 def _parse_plan_scope(body: str, *, has_target_date: bool) -> tuple[str, str]:
     value = body.strip(SEPARATORS)
     scope_rules = (
-        ("本周", "周"),
-        ("这周", "周"),
-        ("周计划", "周"),
-        ("本月", "月"),
-        ("这个月", "月"),
-        ("月计划", "月"),
+        ("长期计划", "长期"),
         ("长期", "长期"),
-        ("以后", "长期"),
-        ("有空", "长期"),
-        ("空闲", "长期"),
-        ("近期", "近期"),
-        ("最近", "近期"),
+        ("短期计划", "短期"),
+        ("短期", "短期"),
+        ("本周", "短期"),
+        ("这周", "短期"),
+        ("本月", "短期"),
+        ("这个月", "短期"),
+        ("近期", "短期"),
+        ("最近", "短期"),
     )
     for prefix, scope in scope_rules:
         if value.startswith(prefix):
             return value[len(prefix) :].strip(SEPARATORS) or value, scope
+    for prefix in ("有空", "空闲", "以后"):
+        if value.startswith(prefix):
+            return value[len(prefix) :].strip(SEPARATORS) or value, "其它"
     if has_target_date:
-        return value, "日"
-    return value, "近期"
+        return value, "短期"
+    return value, "其它"
 
 
 def _parse_plan_priority(body: str) -> str:

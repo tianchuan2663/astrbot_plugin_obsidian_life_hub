@@ -521,6 +521,9 @@ class ObsidianLifeHubPlugin(Star):
         if intent.kind == "reminder_query":
             return await self._query_reminders(event, intent.content or "all")
 
+        if intent.kind == "todo_query":
+            return await self._query_todos(event, intent.content or "all")
+
         if intent.kind == "plan_complete":
             return await self._complete_plan(event, intent.content)
 
@@ -935,7 +938,7 @@ class ObsidianLifeHubPlugin(Star):
         created_time = default_time
         target_date = intent.date
         target_time = intent.time
-        plan_scope = intent.plan_scope or ("日" if target_date else "近期")
+        plan_scope = intent.plan_scope or ("短期" if target_date else "其它")
         priority = intent.priority or "中"
         title = intent.title or truncate(intent.content, 30)
         record_uid = _new_record_uid("plan")
@@ -1045,6 +1048,41 @@ class ObsidianLifeHubPlugin(Star):
         records = await self.db.query_reminders(session_id, limit=50)
         return _format_reminder_list("我的备忘", records)
 
+    async def _query_todos(self, event: AstrMessageEvent, query_type: str) -> str:
+        await self._remember_session(event)
+        session_id = event_session_id(event)
+        today = date.today()
+        if query_type == "today":
+            reminders = await self.db.query_reminders(
+                session_id,
+                start_date=_date_text(today),
+                end_date=_date_text(today),
+                include_undated=False,
+                limit=30,
+            )
+            plans = await self.db.query_plans(session_id, target_date=_date_text(today), limit=20)
+            return _format_todo_list("今日待办", reminders, plans)
+        if query_type == "soon":
+            end = today + timedelta(days=7)
+            reminders = await self.db.query_reminders(
+                session_id,
+                start_date=_date_text(today),
+                end_date=_date_text(end),
+                include_undated=False,
+                limit=50,
+            )
+            plans = await self.db.query_plans(
+                session_id,
+                scopes=("短期",),
+                start_date=_date_text(today),
+                end_date=_date_text(end),
+                limit=30,
+            )
+            return _format_todo_list("近期待办", reminders, plans)
+        reminders = await self.db.query_reminders(session_id, limit=50)
+        plans = await self.db.query_plans(session_id, limit=50)
+        return _format_todo_list("我的待办", reminders, plans)
+
     async def _cancel_plan(self, event: AstrMessageEvent, keyword: str) -> str:
         if not self.config.enable_plans:
             return "计划功能已关闭。"
@@ -1058,7 +1096,7 @@ class ObsidianLifeHubPlugin(Star):
             date=date_text,
             time=time_text,
             title=str(plan["title"]),
-            status="取消",
+            status="已取消",
             note=f"匹配关键词：{keyword}",
             platform=event_platform(event),
             sender_id=event_sender_id(event),
@@ -1090,7 +1128,7 @@ class ObsidianLifeHubPlugin(Star):
             keyword,
             title=candidate.title or truncate(candidate.content, 30),
             content=candidate.content,
-            plan_scope=candidate.plan_scope or ("日" if candidate.date else "近期"),
+            plan_scope=candidate.plan_scope or ("短期" if candidate.date else "其它"),
             priority=candidate.priority or "中",
             target_date=candidate.date,
             target_time=candidate.time,
@@ -1249,7 +1287,7 @@ class ObsidianLifeHubPlugin(Star):
         today_plans = await self.db.query_plans(session_id, target_date=today_text, include_completed=True, limit=50)
         week_plans = await self.db.query_plans(
             session_id,
-            scopes=("日", "周", "近期"),
+            scopes=("短期",),
             start_date=_date_text(week_start),
             end_date=_date_text(week_end),
             include_completed=True,
@@ -1257,7 +1295,7 @@ class ObsidianLifeHubPlugin(Star):
         )
         overdue = await self.db.query_plans(
             session_id,
-            scopes=("日",),
+            scopes=("短期",),
             end_date=_date_text(today - timedelta(days=1)),
             limit=20,
         )
@@ -1278,7 +1316,7 @@ class ObsidianLifeHubPlugin(Star):
             end = start + timedelta(days=6)
             plans = await self.db.query_plans(
                 session_id,
-                scopes=("日", "周", "近期"),
+                scopes=("短期",),
                 start_date=start.strftime("%Y-%m-%d"),
                 end_date=end.strftime("%Y-%m-%d"),
                 limit=30,
@@ -1290,7 +1328,7 @@ class ObsidianLifeHubPlugin(Star):
             end = next_month - timedelta(days=1)
             plans = await self.db.query_plans(
                 session_id,
-                scopes=("日", "周", "月", "近期"),
+                scopes=("短期",),
                 start_date=start.strftime("%Y-%m-%d"),
                 end_date=end.strftime("%Y-%m-%d"),
                 limit=50,
@@ -1300,7 +1338,7 @@ class ObsidianLifeHubPlugin(Star):
             plans = await self.db.query_plans(session_id, scopes=("长期",), limit=30)
             title = "长期计划"
         elif query_type == "free":
-            plans = await self.db.query_plans(session_id, scopes=("近期", "长期"), limit=20)
+            plans = await self.db.query_plans(session_id, scopes=("其它",), limit=20)
             title = "空闲计划"
         else:
             plans = await self.db.query_plans(session_id, limit=30)
@@ -1378,10 +1416,6 @@ class ObsidianLifeHubPlugin(Star):
         return _format_health_overview(title, records)
 
     async def _build_briefing_context(self, session_id: str, date_text: str) -> str:
-        today_plans: list[dict[str, Any]] = []
-        if self.config.enable_plans:
-            today_plans = await self.db.query_plans(session_id, target_date=date_text, limit=5)
-
         today_reminders = await self.db.query_reminders(
             session_id,
             start_date=date_text,
@@ -1390,12 +1424,10 @@ class ObsidianLifeHubPlugin(Star):
             limit=5,
         )
         rows: list[tuple[str, str]] = []
-        if today_plans:
-            rows.extend((plan["title"], plan.get("target_time") or "") for plan in today_plans[:5])
         if today_reminders:
             rows.extend((item["title"], item.get("due_time") or "") for item in today_reminders[:5])
         if not rows:
-            return "| 内容 | 时间 |\n|---|---|\n| 暂无今日计划或备忘 | |"
+            return "| 内容 | 时间 |\n|---|---|\n| 暂无今日备忘 | |"
         lines = ["| 内容 | 时间 |", "|---|---|"]
         lines.extend(f"| {title} | {time} |" for title, time in rows[:10])
         return "\n".join(lines)
@@ -2545,7 +2577,7 @@ def _format_plan_list(title: str, plans: list[dict[str, Any]]) -> str:
     for index, plan in enumerate(plans, start=1):
         target = plan.get("target_date") or "未定"
         priority = plan.get("priority") or "中"
-        scope = plan.get("plan_scope") or "近期"
+        scope = plan.get("plan_scope") or "其它"
         status = plan.get("status") or "未开始"
         lines.append(f"{index}. [{scope}/{priority}/{status}] {plan['title']}（目标：{target}）")
     return "\n".join(lines)
@@ -2558,6 +2590,25 @@ def _format_reminder_list(title: str, reminders: list[dict[str, Any]]) -> str:
     for index, item in enumerate(reminders, start=1):
         due = " ".join(part for part in (item.get("due_date"), item.get("due_time")) if part) or "未设置截止"
         lines.append(f"{index}. {item['title']}（{due}）")
+    return "\n".join(lines)
+
+
+def _format_todo_list(title: str, reminders: list[dict[str, Any]], plans: list[dict[str, Any]]) -> str:
+    lines = [title]
+    active_reminders = [item for item in reminders if item.get("status") not in {"已完成", "取消", "已取消"}]
+    active_plans = [item for item in plans if item.get("status") not in {"已完成", "取消", "已取消"}]
+    if not active_reminders and not active_plans:
+        return f"{title}\n暂无待办。"
+    if active_reminders:
+        lines.append("\n备忘：")
+        for index, item in enumerate(active_reminders, start=1):
+            due = " ".join(part for part in (item.get("due_date"), item.get("due_time")) if part) or "未设置截止"
+            lines.append(f"{index}. {item['title']}（{due}）")
+    if active_plans:
+        lines.append("\n计划：")
+        for index, plan in enumerate(active_plans, start=1):
+            target = " ".join(part for part in (plan.get("target_date"), plan.get("target_time")) if part) or "未定"
+            lines.append(f"{index}. [{plan.get('plan_scope') or '其它'}/{plan.get('status') or '未开始'}] {plan['title']}（开始：{target}）")
     return "\n".join(lines)
 
 
@@ -2620,7 +2671,7 @@ def _format_pending_intents(intents: list[AutoRecordIntent]) -> str:
             )
         elif intent.kind == "plan":
             target = intent.date or "未定"
-            lines.append(f"{index}. 计划：[{intent.plan_scope or '近期'}] {intent.title or intent.content}（目标：{target}）")
+            lines.append(f"{index}. 计划：[{intent.plan_scope or '其它'}] {intent.title or intent.content}（目标：{target}）")
         elif intent.kind == "health":
             value = f" {intent.value:g}{intent.unit}" if intent.value is not None else ""
             lines.append(f"{index}. 健康：{intent.category}{value} {intent.note}".rstrip())

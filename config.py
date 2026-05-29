@@ -62,7 +62,7 @@ class LifePluginConfig:
             diary_folder=cfg.str("diary_folder", "日记"),
             notes_folder=cfg.str("notes_folder", "笔记"),
             finance_folder=cfg.str("finance_folder", "财务"),
-            plan_folder=cfg.str("plan_folder", "计划"),
+            plan_folder=cfg.str("plan_folder", "待办"),
             health_folder=cfg.str("health_folder", "健康"),
             summary_folder=cfg.str("summary_folder", "总结"),
             enable_native_future_task_bridge=cfg.bool("enable_native_future_task_bridge", True),

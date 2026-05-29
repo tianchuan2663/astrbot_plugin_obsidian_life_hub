@@ -171,6 +171,21 @@ def _reminder_table(day_data: dict[str, list[dict]]) -> str:
     return "\n".join(lines)
 
 
+def _plan_status_table(day_data: dict[str, list[dict]]) -> str:
+    plans = [
+        item for item in (day_data.get("plans") or [])
+        if item.get("plan_scope") in {"短期", "日", "周", "月", "近期"}
+    ]
+    lines = ["| 计划 | 状态 | 开始时间 |", "|---|---|---|"]
+    if not plans:
+        lines.append("| 暂无短期计划 | | |")
+        return "\n".join(lines)
+    for item in plans[:8]:
+        start = " ".join(part for part in (item.get("target_date"), item.get("target_time")) if part)
+        lines.append(f"| {item.get('title') or ''} | {item.get('status') or '未开始'} | {start} |")
+    return "\n".join(lines)
+
+
 def _format_due_text(item: dict, summary_date: str) -> str:
     due_date = item.get("due_date") or ""
     due_time = item.get("due_time") or ""
@@ -211,6 +226,8 @@ def _compact_daily_summary(day_data: dict[str, list[dict]], diary_draft: str | N
         "# 🌙 今日总结\n\n"
         "## ⏰ 待办提醒\n"
         f"{_reminder_table(day_data)}\n\n"
+        "## ✅ 计划概览\n"
+        f"{_plan_status_table(day_data)}\n\n"
         "## 💰 财务简讯\n"
         f"{_finance_summary_table(day_data)}\n\n"
         "## 📝 日记草稿\n\n"

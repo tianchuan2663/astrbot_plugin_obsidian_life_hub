@@ -78,7 +78,7 @@ def _build_structured_briefing(
     weather_line: str,
     context: str,
 ) -> str:
-    context_block = context.strip() or "| 内容 | 时间 |\n|---|---|\n| 暂无今日计划或备忘 | |"
+    context_block = context.strip() or "| 内容 | 时间 |\n|---|---|\n| 暂无今日备忘 | |"
     return (
         f"# 🗓️ {date_text} {weekday}\n\n"
         f"## 📍{city}\n\n"

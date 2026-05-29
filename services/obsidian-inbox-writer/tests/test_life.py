@@ -55,11 +55,11 @@ class LifeWriterTests(unittest.TestCase):
         self.assertEqual(result.kind, "diary")
         self.assertIn("type: life-diary", content)
         self.assertIn("# 2026-05-27 日记", content)
-        self.assertIn("## 19:42 | 情绪", content)
+        self.assertIn("## 19:42", content)
         self.assertIn("今天和朋友吃饭很开心。", content)
-        self.assertIn("- 心情：开心", content)
+        self.assertNotIn("sender_id", content)
 
-    def test_write_life_note_sanitizes_filename(self):
+    def test_write_life_note_appends_monthly_table(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             result = write_life_note(
@@ -68,17 +68,17 @@ class LifeWriterTests(unittest.TestCase):
                     date="2026-05-27",
                     time="20:10",
                     title="../黑神话:战斗节奏?",
-                    category="游戏笔记",
+                    category="随想笔记",
                     content="把战斗节奏单独整理一篇。",
                     original_content="记一下，把战斗节奏单独整理一篇。",
+                    record_uid="note-1",
                 ),
             )
             content = result.path.read_text(encoding="utf-8")
 
-        self.assertEqual(result.relative_path, "生活/笔记/游戏笔记/黑神话-战斗节奏.md")
-        self.assertIn("# 黑神话-战斗节奏", content)
-        self.assertIn("### 原文", content)
-        self.assertIn("记一下，把战斗节奏单独整理一篇。", content)
+        self.assertEqual(result.relative_path, "生活/笔记/随想笔记/2026-05 随想笔记.md")
+        self.assertIn("| 日期 | 内容 | 标签 | 备注 |", content)
+        self.assertIn("| 2026-05-27 | 把战斗节奏单独整理一篇。 |  | <!-- olh kind=note;record_id=note-1", content)
 
     def test_append_finance_record_appends_monthly_table(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -110,12 +110,13 @@ class LifeWriterTests(unittest.TestCase):
             result = append_finance_record(root, second)
             content = result.path.read_text(encoding="utf-8")
 
-        self.assertEqual(result.relative_path, "生活/财务/2026-05.md")
+        self.assertEqual(result.relative_path, "生活/财务/2026-05 财务.md")
         self.assertIn("# 2026-05 财务", content)
         self.assertIn("| 日期 | 时间 | 类型 | 金额 | 类别 | 钱包/渠道 | 对象 | 状态 | 备注 |", content)
         self.assertIn("| 2026-05-27 | 12:20 | 支出 | 18.00 | 餐饮 | 支付宝 |  | 已记录 | 兰州拉面<br>午饭", content)
         self.assertIn("| 2026-05-27 | 18:30 | 借出 | 6.50 | 借贷 | 微信 | 张三 | 已记录 | 临时周转", content)
-        self.assertIn("record_id: fin-20260527-test", content)
+        self.assertIn("record_id=fin-20260527-test", content)
+        self.assertNotIn("sender_id:", content)
 
     def test_append_finance_status_update(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -132,7 +133,7 @@ class LifeWriterTests(unittest.TestCase):
             )
             content = result.path.read_text(encoding="utf-8")
 
-        self.assertEqual(result.relative_path, "生活/财务/2026-05.md")
+        self.assertEqual(result.relative_path, "生活/财务/2026-05 财务.md")
         self.assertIn("## 修正记录", content)
         self.assertIn("午饭 ¥18", content)
         self.assertIn("标记为 **作废**", content)
@@ -154,11 +155,11 @@ class LifeWriterTests(unittest.TestCase):
             )
             content = result.path.read_text(encoding="utf-8")
 
-        self.assertEqual(result.relative_path, "生活/健康/2026-05.md")
+        self.assertEqual(result.relative_path, "生活/健康/2026-05 健康.md")
         self.assertEqual(result.kind, "health")
         self.assertIn("type: life-health", content)
         self.assertIn("| 2026-05-27 | 21:30 | 跑步 |  |  | 30 | 5 | 已记录 | 操场", content)
-        self.assertIn("record_id: health-20260527-test", content)
+        self.assertIn("record_id=health-20260527-test", content)
 
     def test_write_summary_document_uses_summary_subfolder(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -223,13 +224,13 @@ class LifeWriterTests(unittest.TestCase):
             )
             content = result.path.read_text(encoding="utf-8")
 
-        self.assertEqual(result.relative_path, "生活/计划/计划清单.md")
+        self.assertEqual(result.relative_path, "生活/待办/计划/计划清单.md")
         self.assertEqual(result.kind, "plan")
         self.assertIn("type: life-plan", content)
-        self.assertIn("| 2026-05-28 | 16:30 | 日 | 2026-05-29 |", content)
+        self.assertIn("## 短期计划", content)
         self.assertIn("整理 AstrBot 插件配置", content)
-        self.assertIn("record_id: plan-20260528-test", content)
-        self.assertIn("标记为 **已完成**", content)
+        self.assertIn("record_id=plan-20260528-test", content)
+        self.assertIn("| 整理 AstrBot 插件配置 | 已完成 | 2026-05-29 | 2026-05-28 17:00 | 2026-05-28 |", content)
 
     def test_append_plan_record_leaves_empty_target_cells_blank(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -246,8 +247,9 @@ class LifeWriterTests(unittest.TestCase):
             )
             content = result.path.read_text(encoding="utf-8")
 
-        self.assertIn("| 2026-05-28 | 17:30 | 长期 |  |  | 中 | 未开始 | 看龙族动漫 |", content)
-        self.assertNotIn("长期 | unknown | unknown |", content)
+        self.assertIn("## 长期计划", content)
+        self.assertIn("| 看龙族动漫 | 未开始 |  |  | 2026-05-28 |", content)
+        self.assertNotIn("unknown", content)
 
     def test_collect_life_recovery_records_reads_markdown_ids(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -353,10 +355,10 @@ class LifeApiTests(unittest.TestCase):
                 result = life_finance(payload, authorization="Bearer test-token")
 
         self.assertEqual(result["ok"], True)
-        self.assertEqual(result["path"], "生活/财务/2026-05.md")
+        self.assertEqual(result["path"], "生活/财务/2026-05 财务.md")
         self.assertEqual(result["commit_hash"], "abc1234")
         commit_push.assert_called_once()
-        self.assertEqual(commit_push.call_args.args[1], "生活/财务/2026-05.md")
+        self.assertEqual(commit_push.call_args.args[1], "生活/财务/2026-05 财务.md")
         self.assertEqual(commit_push.call_args.args[2], "life: add finance 2026-05-27 12:20")
 
     def test_git_revert_api_reverts_writer_commit(self):

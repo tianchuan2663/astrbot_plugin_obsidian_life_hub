@@ -90,7 +90,7 @@ class LifeFinanceStatusRequest(LifeBaseRequest):
 
 
 class LifePlanRequest(LifeBaseRequest):
-    plan_folder: str = Field(default="计划", min_length=1, max_length=80)
+    plan_folder: str = Field(default="待办", min_length=1, max_length=80)
     title: str = Field(min_length=1, max_length=160)
     content: str = Field(min_length=1, max_length=20000)
     plan_scope: str = Field(default="近期", min_length=1, max_length=40)
@@ -112,7 +112,7 @@ class LifeHealthRequest(LifeBaseRequest):
 
 
 class LifePlanStatusRequest(LifeBaseRequest):
-    plan_folder: str = Field(default="计划", min_length=1, max_length=80)
+    plan_folder: str = Field(default="待办", min_length=1, max_length=80)
     title: str = Field(min_length=1, max_length=160)
     status: str = Field(min_length=1, max_length=40)
     note: str | None = Field(default=None, max_length=1000)
@@ -128,7 +128,7 @@ class LifeDocumentRequest(LifeBaseRequest):
 class LifeRecoveryRequest(BaseModel):
     life_root: str = Field(default="生活", min_length=1, max_length=80)
     finance_folder: str = Field(default="财务", min_length=1, max_length=80)
-    plan_folder: str = Field(default="计划", min_length=1, max_length=80)
+    plan_folder: str = Field(default="待办", min_length=1, max_length=80)
     health_folder: str = Field(default="健康", min_length=1, max_length=80)
 
 

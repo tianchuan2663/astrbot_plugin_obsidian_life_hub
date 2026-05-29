@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Iterable
 import re
 
 
@@ -11,8 +12,10 @@ DEFAULT_DIARY_FOLDER = "日记"
 DEFAULT_NOTES_FOLDER = "笔记"
 DEFAULT_FINANCE_FOLDER = "财务"
 DEFAULT_SUMMARY_FOLDER = "总结"
-DEFAULT_PLAN_FOLDER = "计划"
+DEFAULT_PLAN_FOLDER = "待办"
 DEFAULT_HEALTH_FOLDER = "健康"
+REMINDER_FOLDER = "备忘录"
+PLAN_LIST_FOLDER = "计划"
 
 
 @dataclass(frozen=True)
@@ -153,16 +156,11 @@ def append_diary_event(vault_root: Path, item: DiaryEvent) -> LifeWriteResult:
     if not path.exists():
         _write_text(path, _initial_daily_content(item.date, "life-diary", "日记", "diary"))
 
-    mood_line = f"\n- 心情：{_one_line(item.mood)}" if item.mood else ""
     entry = (
         "\n\n"
-        f"## {_one_line(item.time)} | {_one_line(item.category)}\n\n"
+        f"## {_one_line(item.time)}\n\n"
         f"{item.content.strip()}\n\n"
-        f"- 来源：{_one_line(item.platform)}\n"
-        f"- sender_id: {_one_line(item.sender_id)}\n"
-        f"{_record_id_bullet(item.record_uid)}"
-        "- 状态：未总结"
-        f"{mood_line}\n"
+        f"{_record_meta_comment('diary', item.record_uid, item.platform, item.sender_id)}\n"
     )
     _append_text(path, entry)
     return _result(root, path, "diary")
@@ -174,23 +172,9 @@ def write_life_note(vault_root: Path, item: LifeNote) -> LifeWriteResult:
     path.parent.mkdir(parents=True, exist_ok=True)
 
     if not path.exists():
-        title = _safe_filename(item.title)
-        _write_text(path, _initial_note_content(item.date, title, item.category))
+        _write_text(path, _initial_note_content(item.date, item.category))
 
-    original = ""
-    if item.original_content and item.original_content.strip() != item.content.strip():
-        original = f"\n\n### 原文\n\n{item.original_content.strip()}\n"
-
-    entry = (
-        "\n\n"
-        f"## {_one_line(item.date)} {_one_line(item.time)}\n\n"
-        f"{item.content.strip()}\n\n"
-        f"- 分类：{_one_line(item.category)}\n"
-        f"- 来源：{_one_line(item.platform)}\n"
-        f"- sender_id: {_one_line(item.sender_id)}"
-        f"{_record_id_inline(item.record_uid)}"
-        f"{original}\n"
-    )
+    entry = _note_table_row(item)
     _append_text(path, entry)
     return _result(root, path, "note")
 
@@ -202,10 +186,8 @@ def append_finance_record(vault_root: Path, item: FinanceRecord) -> LifeWriteRes
 
     if not path.exists():
         _write_text(path, _initial_finance_content(item.date))
-    else:
-        _ensure_finance_v2_table(path)
 
-    note = _finance_note(item)
+    note = _with_record_meta(_finance_note(item), "finance", item.record_uid, item.platform, item.sender_id)
     row = (
         f"| {_one_line(item.date)} | {_one_line(item.time)} | "
         f"{_one_line(item.direction)} | {_format_amount(item.amount)} | "
@@ -228,7 +210,7 @@ def append_finance_status_update(vault_root: Path, item: FinanceStatusUpdate) ->
     note = f"；{_one_line(item.note)}" if item.note else ""
     entry = (
         f"- {item.date} {item.time}：`{_one_line(item.title)}` 标记为 **{_one_line(item.status)}**"
-        f"{note}（来源：{_one_line(item.platform)}，sender_id: {_one_line(item.sender_id)}）\n"
+        f"{note}\n"
     )
     _append_text(path, entry)
     return _result(root, path, "finance")
@@ -242,16 +224,14 @@ def append_plan_record(vault_root: Path, item: PlanRecord) -> LifeWriteResult:
     if not path.exists():
         _write_text(path, _initial_plan_content(item.date))
 
-    content = item.content
-    if item.record_uid:
-        content = f"{content}<br>record_id: {item.record_uid}"
+    section = _plan_section(item.plan_scope)
+    start_time = _join_date_time(item.target_date, item.target_time)
+    note = _with_record_meta("", "plan", item.record_uid, item.platform, item.sender_id)
     row = (
-        f"| {_one_line(item.date)} | {_one_line(item.time)} | {_one_line(item.plan_scope)} | "
-        f"{_table_cell(item.target_date)} | {_table_cell(item.target_time)} | "
-        f"{_one_line(item.priority)} | {_one_line(item.status)} | {_one_line(item.title)} | "
-        f"{_table_cell(content)} | {_one_line(item.platform)} | {_one_line(item.sender_id)} |\n"
+        f"| {_table_cell(item.content or item.title)} | {_one_line(item.status)} | "
+        f"{_table_cell(start_time)} |  | {_one_line(item.date)} | {_table_cell(note)} |\n"
     )
-    _append_text(path, row)
+    _append_row_to_section(path, section, row)
     return _result(root, path, "plan")
 
 
@@ -263,12 +243,13 @@ def append_health_record(vault_root: Path, item: HealthRecord) -> LifeWriteResul
     if not path.exists():
         _write_text(path, _initial_health_content(item.date))
 
+    note = _with_record_meta(_health_note(item), "health", item.record_uid, item.platform, item.sender_id)
     row = (
         f"| {_one_line(item.date)} | {_one_line(item.time)} | {_one_line(item.metric_type)} | "
         f"{_table_cell(_format_optional_number(item.value))} | {_table_cell(item.unit)} | "
         f"{_table_cell(_format_optional_number(item.duration_minutes))} | "
         f"{_table_cell(_format_optional_number(item.distance_km))} | {_one_line(item.status)} | "
-        f"{_health_note(item)} |\n"
+        f"{note} |\n"
     )
     _append_text(path, row)
     return _result(root, path, "health")
@@ -311,13 +292,11 @@ def append_plan_status_update(vault_root: Path, item: PlanStatusUpdate) -> LifeW
     if not path.exists():
         _write_text(path, _initial_plan_content(item.date))
 
-    note = f"；{_one_line(item.note)}" if item.note else ""
-    entry = (
-        "\n"
-        f"- {item.date} {item.time}：`{_one_line(item.title)}` 标记为 **{_one_line(item.status)}**"
-        f"{note}（来源：{_one_line(item.platform)}，sender_id: {_one_line(item.sender_id)}）\n"
-    )
-    _append_text(path, entry)
+    if not _update_plan_row_status(path, item.title, item.status, item.date, item.time, item.note):
+        note = f"；{_one_line(item.note)}" if item.note else ""
+        _ensure_plan_status_log(path)
+        entry = f"- {item.date} {item.time}：`{_one_line(item.title)}` 标记为 **{_one_line(item.status)}**{note}\n"
+        _append_text(path, entry)
     return _result(root, path, "plan")
 
 
@@ -333,9 +312,7 @@ def write_summary_document(vault_root: Path, item: LifeDocument) -> LifeWriteRes
     entry = (
         "\n\n"
         f"## {_one_line(item.date)} {_one_line(item.time)}\n\n"
-        f"{item.content.strip()}\n\n"
-        f"- 来源：{_one_line(item.platform)}\n"
-        f"- sender_id: {_one_line(item.sender_id)}\n"
+        f"{item.content.strip()}\n"
     )
     _append_text(path, entry)
     return _result(root, path, _document_kind(item.document_type))
@@ -354,8 +331,23 @@ def _diary_path(root: Path, item: DiaryEvent) -> Path:
 
 
 def _note_path(root: Path, item: LifeNote) -> Path:
-    filename = f"{_safe_filename(item.title)}.md"
-    return _safe_life_path(root, item.life_root, item.notes_folder, item.category, filename)
+    month = item.date[:7]
+    category = _note_category(item.category)
+    if category == REMINDER_FOLDER:
+        return _safe_life_path(
+            root,
+            item.life_root,
+            DEFAULT_PLAN_FOLDER,
+            REMINDER_FOLDER,
+            f"{month} {REMINDER_FOLDER}.md",
+        )
+    return _safe_life_path(
+        root,
+        item.life_root,
+        item.notes_folder,
+        category,
+        f"{month} {category}.md",
+    )
 
 
 def _finance_path(root: Path, item: FinanceRecord) -> Path:
@@ -364,7 +356,7 @@ def _finance_path(root: Path, item: FinanceRecord) -> Path:
         root,
         item.life_root,
         item.finance_folder,
-        f"{date.year}-{date.month:02d}.md",
+        f"{date.year}-{date.month:02d} 财务.md",
     )
 
 
@@ -374,7 +366,7 @@ def _finance_status_path(root: Path, item: FinanceStatusUpdate) -> Path:
         root,
         item.life_root,
         item.finance_folder,
-        f"{date.year}-{date.month:02d}.md",
+        f"{date.year}-{date.month:02d} 财务.md",
     )
 
 
@@ -384,7 +376,7 @@ def _health_path(root: Path, item: HealthRecord) -> Path:
         root,
         item.life_root,
         item.health_folder,
-        f"{date.year}-{date.month:02d}.md",
+        f"{date.year}-{date.month:02d} 健康.md",
     )
 
 
@@ -400,7 +392,7 @@ def _summary_path(root: Path, item: LifeDocument) -> Path:
 
 
 def _plan_path(root: Path, life_root: str, plan_folder: str) -> Path:
-    return _safe_life_path(root, life_root, plan_folder, "计划清单.md")
+    return _safe_life_path(root, life_root, plan_folder, PLAN_LIST_FOLDER, "计划清单.md")
 
 
 def _safe_life_path(root: Path, life_root: str, *parts: str) -> Path:
@@ -436,7 +428,24 @@ def _initial_daily_content(date_text: str, page_type: str, title: str, tag: str)
     )
 
 
-def _initial_note_content(date_text: str, title: str, category: str) -> str:
+def _initial_note_content(date_text: str, category: str) -> str:
+    month = date_text[:7]
+    normalized = _note_category(category)
+    if normalized == "语录笔记":
+        table = (
+            "| 日期 | 来源 | 作者/账号 | 语录 | 标签 | 一句话感想 |\n"
+            "|---|---|---|---|---|---|\n"
+        )
+    elif normalized == REMINDER_FOLDER:
+        table = (
+            "| 内容 | 截止日期 | 截止时间 | 状态 | 创建时间 |\n"
+            "|---|---|---|---|---|\n"
+        )
+    else:
+        table = (
+            "| 日期 | 内容 | 标签 | 备注 |\n"
+            "|---|---|---|---|\n"
+        )
     return (
         "---\n"
         "type: life-note\n"
@@ -445,8 +454,8 @@ def _initial_note_content(date_text: str, title: str, category: str) -> str:
         f"updated: {date_text}\n"
         "tags: [life, note]\n"
         "---\n\n"
-        f"# {title}\n\n"
-        f"- 分类：{_one_line(category)}"
+        f"# {month} {normalized}\n\n"
+        f"{table}"
     )
 
 
@@ -483,6 +492,10 @@ def _initial_health_content(date_text: str) -> str:
 
 
 def _initial_plan_content(date_text: str) -> str:
+    table = (
+        "| 计划内容 | 状态 | 开始时间 | 完成时间 | 创建时间 | 备注 |\n"
+        "|---|---|---|---|---|---|\n"
+    )
     return (
         "---\n"
         "type: life-plan\n"
@@ -492,8 +505,9 @@ def _initial_plan_content(date_text: str) -> str:
         "tags: [life, plan]\n"
         "---\n\n"
         "# 计划清单\n\n"
-        "| 创建日期 | 时间 | 层级 | 目标日期 | 目标时间 | 优先级 | 状态 | 标题 | 内容 | 来源 | sender_id |\n"
-        "|---|---:|---|---|---:|---|---|---|---|---|---|\n"
+        f"## 短期计划\n\n{table}\n"
+        f"## 长期计划\n\n{table}\n"
+        f"## 其它计划\n\n{table}"
     )
 
 
@@ -517,11 +531,6 @@ def _finance_note(item: FinanceRecord) -> str:
         parts.append(_one_line(item.merchant))
     if item.note:
         parts.append(_one_line(item.note))
-    parts.append(f"来源：{_one_line(item.platform)}")
-    if item.sender_id:
-        parts.append(f"sender_id: {_one_line(item.sender_id)}")
-    if item.record_uid:
-        parts.append(f"record_id: {_one_line(item.record_uid)}")
     return "<br>".join(parts)
 
 
@@ -529,12 +538,206 @@ def _health_note(item: HealthRecord) -> str:
     parts = []
     if item.note:
         parts.append(_one_line(item.note))
-    parts.append(f"来源：{_one_line(item.platform)}")
-    if item.sender_id:
-        parts.append(f"sender_id: {_one_line(item.sender_id)}")
-    if item.record_uid:
-        parts.append(f"record_id: {_one_line(item.record_uid)}")
     return "<br>".join(parts)
+
+
+def _note_table_row(item: LifeNote) -> str:
+    category = _note_category(item.category)
+    meta = _record_meta_comment("note", item.record_uid, item.platform, item.sender_id)
+    if category == "语录笔记":
+        fields = _quote_fields(item)
+        comment = _with_record_meta(fields["comment"], "note", item.record_uid, item.platform, item.sender_id)
+        return (
+            f"| {_one_line(item.date)} | {_table_cell(fields['source'])} | {_table_cell(fields['author'])} | "
+            f"{_table_cell(fields['quote'])} | {_table_cell(fields['tags'])} | {_table_cell(comment)} |\n"
+        )
+    if category == REMINDER_FOLDER:
+        due_date, due_time, body = _reminder_fields(item.content)
+        created = _with_record_meta(item.date, "reminder", item.record_uid, item.platform, item.sender_id)
+        return (
+            f"| {_table_cell(body)} | {_table_cell(due_date)} | {_table_cell(due_time)} | "
+            f"未完成 | {_table_cell(created)} |\n"
+        )
+    content = _table_cell(_strip_note_labels(item.content))
+    tags = _tags_from_text(item.content)
+    remark = _with_record_meta("", "note", item.record_uid, item.platform, item.sender_id)
+    return f"| {_one_line(item.date)} | {content} | {_table_cell(tags)} | {_table_cell(remark)} |\n"
+
+
+def _note_category(category: str) -> str:
+    text = _one_line(category)
+    if text in {"语录", "语录笔记"}:
+        return "语录笔记"
+    if text in {"备忘", "备忘录", "DDL"}:
+        return REMINDER_FOLDER
+    if text in {"随想", "随想笔记"}:
+        return "随想笔记"
+    return text
+
+
+def _quote_fields(item: LifeNote) -> dict[str, str]:
+    content = item.content
+    return {
+        "source": _field_value(content, ("来源",)) or getattr(item, "source", "") or "",
+        "author": _field_value(content, ("作者或账号", "作者", "账号")) or "",
+        "quote": _field_value(content, ("原句", "语录")) or item.title or _strip_note_labels(content),
+        "tags": _field_value(content, ("标签",)) or _tags_from_text(content),
+        "comment": _field_value(content, ("一句话感想", "感想")) or "",
+    }
+
+
+def _reminder_fields(content: str) -> tuple[str, str, str]:
+    lines = [line.strip() for line in str(content or "").splitlines() if line.strip()]
+    due_text = ""
+    body_parts: list[str] = []
+    for line in lines:
+        if line.startswith("截止时间："):
+            due_text = line.removeprefix("截止时间：").strip()
+        else:
+            body_parts.append(line)
+    due_date = ""
+    due_time = ""
+    if due_text and due_text != "未设置":
+        match = re.match(r"(\d{4}-\d{2}-\d{2})(?:\s+(\d{2}:\d{2}))?", due_text)
+        if match:
+            due_date = match.group(1) or ""
+            due_time = match.group(2) or ""
+        else:
+            due_date = due_text
+    return due_date, due_time, " ".join(body_parts).strip()
+
+
+def _field_value(text: str, labels: Iterable[str]) -> str:
+    for label in labels:
+        pattern = rf"{re.escape(label)}[：:]\s*([^\n]+)"
+        match = re.search(pattern, str(text or ""))
+        if match:
+            return match.group(1).strip()
+    return ""
+
+
+def _strip_note_labels(text: str) -> str:
+    lines = []
+    for line in str(text or "").splitlines():
+        stripped = line.strip()
+        if re.match(r"^(来源|作者或账号|作者|账号|标签|一句话感想|感想|原句|语录)[：:]", stripped):
+            continue
+        lines.append(stripped)
+    return " ".join(line for line in lines if line).strip()
+
+
+def _tags_from_text(text: str) -> str:
+    tags = re.findall(r"#([\w\u4e00-\u9fff-]+)", str(text or ""))
+    return " ".join(f"#{tag}" for tag in tags)
+
+
+def _with_record_meta(
+    visible: str,
+    kind: str,
+    record_uid: str | None,
+    platform: str | None,
+    sender_id: str | None,
+) -> str:
+    comment = _record_meta_comment(kind, record_uid, platform, sender_id)
+    text = str(visible or "").strip()
+    if not comment:
+        return text
+    return f"{text}{comment}" if text else comment.strip()
+
+
+def _record_meta_comment(kind: str, record_uid: str | None, platform: str | None, sender_id: str | None) -> str:
+    parts = [f"kind={_one_line(kind)}"]
+    if record_uid:
+        parts.append(f"record_id={_one_line(record_uid)}")
+    if len(parts) == 1:
+        return ""
+    return f"<!-- olh {';'.join(parts)} -->"
+
+
+def _join_date_time(date_text: str | None, time_text: str | None) -> str:
+    return " ".join(part for part in (date_text, time_text) if part).strip()
+
+
+def _split_date_time(value: str) -> tuple[str | None, str | None]:
+    text = str(value or "").strip()
+    if not text:
+        return None, None
+    match = re.match(r"(\d{4}-\d{2}-\d{2})(?:\s+(\d{2}:\d{2}))?", text)
+    if not match:
+        return text, None
+    return match.group(1), match.group(2)
+
+
+def _plan_section(plan_scope: str) -> str:
+    text = _one_line(plan_scope)
+    if text in {"长期", "长期计划", "long_term"}:
+        return "长期计划"
+    if text in {"短期", "短期计划", "近期", "日", "周", "月", "today", "week", "month"}:
+        return "短期计划"
+    return "其它计划"
+
+
+def _append_row_to_section(path: Path, section_title: str, row: str) -> None:
+    content = path.read_text(encoding="utf-8")
+    marker = f"## {section_title}"
+    start = content.find(marker)
+    if start == -1:
+        _append_text(path, f"\n\n{marker}\n\n| 计划内容 | 状态 | 开始时间 | 完成时间 | 创建时间 | 备注 |\n|---|---|---|---|---|---|\n{row}")
+        return
+    next_section = content.find("\n## ", start + len(marker))
+    insert_at = len(content) if next_section == -1 else next_section + 1
+    updated = content[:insert_at].rstrip() + "\n" + row + content[insert_at:]
+    _write_text(path, updated)
+
+
+def _update_plan_row_status(
+    path: Path,
+    title: str,
+    status: str,
+    date_text: str,
+    time_text: str,
+    note: str | None,
+) -> bool:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    keyword = str(title or "").strip()
+    if not keyword:
+        return False
+    changed = False
+    for index, line in enumerate(lines):
+        cells = _markdown_table_cells(line)
+        if len(cells) != 6 or cells[0] == "计划内容" or cells[0].startswith("---"):
+            continue
+        if not _loose_keyword_match(keyword, cells[0]):
+            continue
+        cells[1] = _one_line(status)
+        if status == "已完成" and not cells[3]:
+            cells[3] = _join_date_time(date_text, time_text)
+        if note:
+            visible_note = _strip_hidden_metadata(cells[5])
+            cells[5] = _table_cell(f"{visible_note}；{_one_line(note)}" if visible_note else _one_line(note))
+        lines[index] = "| " + " | ".join(_table_cell(cell) for cell in cells) + " |"
+        changed = True
+        break
+    if changed:
+        _write_text(path, "\n".join(lines) + "\n")
+    return changed
+
+
+def _loose_keyword_match(keyword: str, text: str) -> bool:
+    compact_keyword = re.sub(r"\s+", "", keyword)
+    compact_text = re.sub(r"\s+", "", text)
+    if not compact_keyword:
+        return False
+    if compact_keyword in compact_text:
+        return True
+    return all(char in compact_text for char in compact_keyword)
+
+
+def _ensure_plan_status_log(path: Path) -> None:
+    content = path.read_text(encoding="utf-8")
+    if "## 计划变更记录" in content:
+        return
+    _append_text(path, "\n\n## 计划变更记录\n\n")
 
 
 def _ensure_finance_v2_table(path: Path) -> None:
@@ -591,25 +794,30 @@ def _parse_finance_markdown(root: Path, path: Path) -> list[dict[str, object]]:
 
 def _parse_plan_markdown(root: Path, path: Path) -> list[dict[str, object]]:
     records: list[dict[str, object]] = []
+    current_scope = "其它"
     for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("## "):
+            current_scope = line.removeprefix("## ").replace("计划", "").strip() or "其它"
+            continue
         cells = _markdown_table_cells(line)
-        if len(cells) != 11 or cells[0] == "创建日期" or cells[0].startswith("---"):
+        if len(cells) != 6 or cells[0] == "计划内容" or cells[0].startswith("---"):
             continue
         record_uid = _extract_record_uid(line)
         if not record_uid:
             continue
+        target_date, target_time = _split_date_time(cells[2])
         records.append(
             {
                 "record_uid": record_uid,
-                "plan_date": cells[0],
-                "plan_time": cells[1],
-                "plan_scope": cells[2],
-                "target_date": cells[3] or None,
-                "target_time": cells[4] or None,
-                "priority": cells[5] or "中",
-                "status": cells[6] or "未开始",
-                "title": cells[7],
-                "content": _metadata_to_text(_strip_record_uid(cells[8])),
+                "plan_date": cells[4],
+                "plan_time": "",
+                "plan_scope": current_scope,
+                "target_date": target_date,
+                "target_time": target_time,
+                "priority": "中",
+                "status": cells[1] or "未开始",
+                "title": cells[0],
+                "content": cells[0],
                 "markdown_path": path.relative_to(root).as_posix(),
             }
         )
@@ -655,17 +863,22 @@ def _clean_cell(value: str) -> str:
 
 
 def _extract_record_uid(text: str) -> str:
-    match = re.search(r"record_id:\s*([A-Za-z0-9_-]+)", str(text or ""))
+    match = re.search(r"record_id[=:]\s*([A-Za-z0-9_-]+)", str(text or ""))
     return match.group(1) if match else ""
 
 
 def _strip_record_uid(text: str) -> str:
-    return re.sub(r"(?:<br>)?\s*record_id:\s*[A-Za-z0-9_-]+", "", str(text or "")).strip()
+    cleaned = re.sub(r"(?:<br>)?\s*record_id[=:]\s*[A-Za-z0-9_-]+", "", str(text or ""))
+    return _strip_hidden_metadata(cleaned)
+
+
+def _strip_hidden_metadata(text: str) -> str:
+    return re.sub(r"\s*<!--\s*olh\b.*?-->\s*", "", str(text or "")).strip()
 
 
 def _metadata_to_text(text: str) -> str:
     parts = []
-    for part in str(text or "").split("<br>"):
+    for part in _strip_hidden_metadata(text).split("<br>"):
         item = part.strip()
         if not item or item.startswith("来源：") or item.startswith("sender_id:"):
             continue
@@ -691,14 +904,6 @@ def _format_optional_number(value: float | None) -> str:
     if value is None:
         return ""
     return f"{float(value):.2f}".rstrip("0").rstrip(".")
-
-
-def _record_id_bullet(value: str | None) -> str:
-    return f"- record_id: {_one_line(value)}\n" if value else ""
-
-
-def _record_id_inline(value: str | None) -> str:
-    return f"\n- record_id: {_one_line(value)}" if value else ""
 
 
 def _result(root: Path, path: Path, kind: str) -> LifeWriteResult:

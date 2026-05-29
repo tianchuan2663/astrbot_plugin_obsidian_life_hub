@@ -777,7 +777,7 @@ class LifeDatabase:
             plans = self._fetch_dicts(
                 "SELECT * FROM life_plans WHERE session_id = ? "
                 "AND status NOT IN ('取消', '已取消') "
-                "AND (target_date = ? OR DATE(updated_at) = ? OR (target_date IS NULL AND plan_scope = '近期')) "
+                "AND (target_date = ? OR DATE(updated_at) = ? OR (target_date IS NULL AND plan_scope = '短期')) "
                 "ORDER BY COALESCE(target_date, '9999-12-31'), priority, id",
                 (session_id, date_text, date_text),
             )
@@ -1068,7 +1068,7 @@ class LifeDatabase:
                         item.get("plan_time") or "",
                         item.get("title") or "未命名计划",
                         item.get("content") or item.get("title") or "",
-                        item.get("plan_scope") or "近期",
+                        item.get("plan_scope") or "其它",
                         item.get("priority") or "中",
                         item.get("status") or "未开始",
                         item.get("target_date") or None,

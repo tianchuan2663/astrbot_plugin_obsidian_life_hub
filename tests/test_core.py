@@ -49,7 +49,7 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(config.amap_weather_city, "370200")
         self.assertEqual(config.weather_city_name, "青岛")
         self.assertEqual(config.life_root_folder, "生活")
-        self.assertEqual(config.plan_folder, "计划")
+        self.assertEqual(config.plan_folder, "待办")
         self.assertTrue(config.enable_inbox)
         self.assertTrue(config.inbox_require_admin)
         self.assertTrue(config.enable_native_future_task_bridge)
@@ -386,6 +386,8 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(classify_auto_record("预算情况").content, "budget")
         self.assertEqual(classify_auto_record("财务周报").content, "week_report")
         self.assertEqual(classify_auto_record("计划复盘").kind, "plan_review")
+        self.assertEqual(classify_auto_record("今日待办").kind, "todo_query")
+        self.assertEqual(classify_auto_record("近期待办").content, "soon")
         amend = classify_auto_record("改上一条 记账 午饭18元")
         self.assertIsNotNone(amend)
         self.assertEqual(amend.kind, "amend")
@@ -420,16 +422,16 @@ class CoreTests(unittest.TestCase):
 
         self.assertIsNotNone(plan)
         self.assertEqual(plan.kind, "plan")
-        self.assertEqual(plan.plan_scope, "日")
+        self.assertEqual(plan.plan_scope, "短期")
         self.assertEqual(plan.priority, "高")
         self.assertEqual(plan.date, (date.today() + timedelta(days=1)).strftime("%Y-%m-%d"))
         self.assertIsNotNone(compact_date_plan)
         self.assertEqual(compact_date_plan.kind, "plan")
-        self.assertEqual(compact_date_plan.plan_scope, "日")
+        self.assertEqual(compact_date_plan.plan_scope, "短期")
         self.assertEqual(compact_date_plan.content, "整理一下宿舍个人物品")
         self.assertIsNotNone(compact_date_plan.date)
         self.assertEqual(week.kind, "plan")
-        self.assertEqual(week.plan_scope, "周")
+        self.assertEqual(week.plan_scope, "短期")
         self.assertEqual(long_term.kind, "plan")
         self.assertEqual(long_term.plan_scope, "长期")
         self.assertEqual(query.kind, "plan_query")
@@ -471,7 +473,7 @@ class CoreTests(unittest.TestCase):
         self.assertIsNotNone(risky)
         self.assertEqual(risky.kind, "needs_confirmation")
         self.assertEqual([item.kind for item in intents], ["plan", "plan", "plan"])
-        self.assertEqual([item.plan_scope for item in intents], ["长期", "长期", "长期"])
+        self.assertEqual([item.plan_scope for item in intents], ["其它", "其它", "其它"])
         self.assertEqual([item.content for item in intents], ["看龙族动漫", "爬大珠山", "去灵山岛"])
 
     def test_confirmation_candidates_for_risky_messages(self):
@@ -576,7 +578,7 @@ class CoreTests(unittest.TestCase):
                 "events": [{"event_time": "19:00", "category": "日记", "content": "链路测试"}],
                 "notes": [],
                 "finance": [],
-                "plans": [{"plan_scope": "日", "priority": "高", "status": "未开始", "title": "整理插件配置", "target_date": "2026-05-28"}],
+                "plans": [{"plan_scope": "短期", "priority": "高", "status": "未开始", "title": "整理插件配置", "target_date": "2026-05-28"}],
                 "conversations": [{"created_at": "2026-05-28 20:00:00", "role": "user", "content": "普通聊天不要进总结"}],
             }
         )
@@ -636,7 +638,7 @@ class BriefingTests(unittest.IsolatedAsyncioTestCase):
                     {"scope": "本月", "expense": 30, "income": 100, "currency_symbol": "¥"},
                 ],
                 "health": [],
-                "plans": [{"status": "未开始", "plan_scope": "日", "priority": "中", "title": "整理插件", "target_date": "2026-05-28"}],
+                "plans": [{"status": "未开始", "plan_scope": "短期", "priority": "中", "title": "整理插件", "target_date": "2026-05-28"}],
                 "summary_date": "2026-05-28",
                 "upcoming_reminders": [
                     {"title": "交材料", "due_date": "2026-05-29", "due_time": "20:00", "status": "已记录"},
@@ -651,6 +653,7 @@ class BriefingTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("## ⏰ 待办提醒", day_text)
         self.assertIn("| 内容 | 截止时间 |", day_text)
         self.assertIn("| 交材料 | 明日 20:00 |", day_text)
+        self.assertIn("## ✅ 计划概览", day_text)
         self.assertIn("## 💰 财务简讯", day_text)
         self.assertIn("| 范围 | 支出 | 收入 |", day_text)
         self.assertIn("## 📝 日记草稿", day_text)
@@ -669,8 +672,8 @@ class BriefingTests(unittest.IsolatedAsyncioTestCase):
                 ],
                 "health": [{"record_date": "2026-05-28", "record_time": "19:00", "metric_type": "跑步", "distance_km": 5}],
                 "plans": [
-                    {"status": "已完成", "plan_scope": "日", "priority": "中", "title": "完成项", "target_date": "2026-05-28"},
-                    {"status": "未开始", "plan_scope": "周", "priority": "高", "title": "推进项", "target_date": "2026-05-29"},
+                    {"status": "已完成", "plan_scope": "短期", "priority": "中", "title": "完成项", "target_date": "2026-05-28"},
+                    {"status": "未开始", "plan_scope": "短期", "priority": "高", "title": "推进项", "target_date": "2026-05-29"},
                 ],
                 "conversations": [],
             },
@@ -720,7 +723,7 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
                     "12:00",
                     "整理插件配置",
                     "整理插件配置",
-                    "近期",
+                    "短期",
                     "中",
                 )
                 completed = await db.complete_plan_by_keyword("session", "插件")
@@ -746,7 +749,7 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
                     "12:00",
                     "整理插件配置",
                     "整理插件配置",
-                    "近期",
+                    "短期",
                     "中",
                 )
                 started = await db.start_plan_by_keyword("session", "插件")
@@ -834,7 +837,7 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
                             "wallet": "支付宝",
                             "counterparty": "",
                             "status": "已记录",
-                            "markdown_path": "生活/财务/2026-05.md",
+                            "markdown_path": "生活/财务/2026-05 财务.md",
                         }
                     ],
                     "plans": [
@@ -844,12 +847,12 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
                             "plan_time": "13:00",
                             "title": "整理插件",
                             "content": "整理插件",
-                            "plan_scope": "日",
+                            "plan_scope": "短期",
                             "priority": "中",
                             "status": "未开始",
                             "target_date": "2026-05-29",
                             "target_time": None,
-                            "markdown_path": "生活/计划/计划清单.md",
+                            "markdown_path": "生活/待办/计划/计划清单.md",
                         }
                     ],
                     "health": [
@@ -861,7 +864,7 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
                             "distance_km": 5,
                             "duration_minutes": 30,
                             "status": "已记录",
-                            "markdown_path": "生活/健康/2026-05.md",
+                            "markdown_path": "生活/健康/2026-05 健康.md",
                         }
                     ],
                 }
