@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Local runtime data
+.env
+.env.*
+!.env.example
+*.db
+*.sqlite
+*.sqlite3
+*.log
+logs/
+data/
+vault/
+
+# Secrets and deployment-local files
+.ssh-temp/
+*.pem
+*.key
+known_hosts
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

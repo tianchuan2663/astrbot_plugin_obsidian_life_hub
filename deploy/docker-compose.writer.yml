@@ -1,0 +1,19 @@
+services:
+  obsidian-inbox-writer:
+    build:
+      context: ../services/obsidian-inbox-writer
+    image: obsidian-inbox-writer:latest
+    container_name: obsidian-inbox-writer
+    restart: unless-stopped
+    environment:
+      VAULT_ROOT: /vault
+      INBOX_TOKEN: ${INBOX_TOKEN:?set INBOX_TOKEN in .env}
+      ENABLE_GIT_SYNC: ${ENABLE_GIT_SYNC:-false}
+      INBOX_TIMEZONE: ${INBOX_TIMEZONE:-Asia/Shanghai}
+      GIT_SSH_COMMAND: ssh -i /root/.ssh/obsidian_life_hub_git_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new
+    ports:
+      - "${INBOX_WRITER_BIND:-127.0.0.1}:${INBOX_WRITER_PORT:-8787}:8787"
+    volumes:
+      - "${VAULT_HOST_PATH:?set VAULT_HOST_PATH in .env}:/vault"
+      - "${GIT_SSH_KEY_PATH:-/root/.ssh/id_ed25519}:/root/.ssh/obsidian_life_hub_git_key:ro"
+      - "${GIT_KNOWN_HOSTS_PATH:-/root/.ssh/known_hosts}:/root/.ssh/known_hosts:ro"

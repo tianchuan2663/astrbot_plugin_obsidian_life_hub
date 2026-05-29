@@ -1,0 +1,244 @@
+{
+  "enabled": {
+    "description": "启用插件",
+    "hint": "关闭后插件不会处理命令、自动记录或定时推送。",
+    "type": "bool",
+    "default": true
+  },
+  "assistant_display_name": {
+    "description": "助手显示名称",
+    "hint": "用于状态、帮助等回复文案。做成通用插件时可以改成自己的助手名。",
+    "type": "string",
+    "default": "Obsidian Life Hub"
+  },
+  "currency_symbol": {
+    "description": "货币符号",
+    "hint": "用于财务查询展示，例如 ¥、$、€。",
+    "type": "string",
+    "default": "¥"
+  },
+  "monthly_budget": {
+    "description": "月度预算",
+    "hint": "填 0 表示关闭预算提醒；填写后本月财务会显示预算进度。",
+    "type": "float",
+    "default": 0
+  },
+  "writer_base_url": {
+    "description": "writer 服务地址",
+    "hint": "同一 Docker 网络内推荐 http://obsidian-inbox-writer:8787；跨机器部署时填写 AstrBot 可访问的 writer 地址，不要带末尾 /。",
+    "type": "string",
+    "default": "http://obsidian-inbox-writer:8787"
+  },
+  "writer_token": {
+    "description": "writer 访问 Token",
+    "hint": "必须与 obsidian-inbox-writer 的 INBOX_TOKEN 一致；不要提交到 Git。",
+    "type": "string",
+    "default": "",
+    "obvious_hint": true
+  },
+  "life_root_folder": {
+    "description": "生活层根目录",
+    "hint": "默认写入 Obsidian vault 下的 生活/。",
+    "type": "string",
+    "default": "生活"
+  },
+  "diary_folder": {
+    "description": "日记子目录",
+    "hint": "日记将写入 生活/日记/YYYY/YYYY-MM/YYYY-MM-DD.md。",
+    "type": "string",
+    "default": "日记"
+  },
+  "notes_folder": {
+    "description": "笔记子目录",
+    "hint": "生活笔记将按分类写入 生活/笔记/<分类>/。",
+    "type": "string",
+    "default": "笔记"
+  },
+  "finance_folder": {
+    "description": "财务子目录",
+    "hint": "记账记录将写入 生活/财务/YYYY-MM.md。",
+    "type": "string",
+    "default": "财务"
+  },
+  "plan_folder": {
+    "description": "计划子目录",
+    "hint": "计划将写入 生活/计划/计划清单.md。",
+    "type": "string",
+    "default": "计划"
+  },
+  "health_folder": {
+    "description": "健康子目录",
+    "hint": "体重、跑步、睡眠和健身记录将写入 生活/健康/YYYY-MM.md。",
+    "type": "string",
+    "default": "健康"
+  },
+  "summary_folder": {
+    "description": "总结子目录",
+    "hint": "晨报和日总结将写入 生活/总结/。",
+    "type": "string",
+    "default": "总结"
+  },
+  "enable_native_future_task_bridge": {
+    "description": "桥接 AstrBot 原生未来任务",
+    "hint": "开启后，明确的“提醒我...”句式会直接创建 AstrBot 原生 future_task，不写入 Obsidian，也不接管普通聊天。",
+    "type": "bool",
+    "default": true
+  },
+  "enable_auto_record": {
+    "description": "启用明确触发词记录",
+    "hint": "开启后，带有记账、支出、收入、计划、备忘、随想、语录、体重、跑步等明确触发词的消息会在进入 LLM 前写入 Obsidian；普通聊天不接管。",
+    "type": "bool",
+    "default": true
+  },
+  "enable_inbox": {
+    "description": "启用 Inbox 收件箱",
+    "hint": "开启后本插件接管 /记 和 /note，写入 raw/inbox/。",
+    "type": "bool",
+    "default": true
+  },
+  "inbox_require_admin": {
+    "description": "Inbox 要求管理员权限",
+    "hint": "开启后只有 AstrBot 管理员可以使用 /记 和 /note。",
+    "type": "bool",
+    "default": true
+  },
+  "inbox_allowed_sender_ids": {
+    "description": "Inbox 允许的 sender_id",
+    "hint": "可留空；填写后只有列表内 sender_id 可以写入，支持列表或逗号分隔字符串。",
+    "type": "list",
+    "default": []
+  },
+  "enable_diary": {
+    "description": "启用日记记录",
+    "hint": "关闭后日记命令和日记触发词不写入。",
+    "type": "bool",
+    "default": true
+  },
+  "enable_notes": {
+    "description": "启用生活笔记",
+    "hint": "关闭后笔记命令和随想、语录等触发词不写入。",
+    "type": "bool",
+    "default": true
+  },
+  "enable_finance": {
+    "description": "启用记账",
+    "hint": "关闭后记账、支出、收入、借贷等命令不写入。",
+    "type": "bool",
+    "default": true
+  },
+  "enable_plans": {
+    "description": "启用计划",
+    "hint": "开启后支持计划、今日计划、本周计划、长期计划和完成计划。",
+    "type": "bool",
+    "default": true
+  },
+  "enable_health": {
+    "description": "启用健康记录",
+    "hint": "开启后支持体重、跑步、睡眠、健身和健康概览。",
+    "type": "bool",
+    "default": true
+  },
+  "enable_daily_summary": {
+    "description": "启用日总结",
+    "hint": "关闭后 /summary、今日总结和定时今日总结不生成。",
+    "type": "bool",
+    "default": true
+  },
+  "include_conversations_in_summaries": {
+    "description": "总结纳入普通对话",
+    "hint": "默认关闭。开启后，今日总结和日记草稿会把当天普通聊天片段作为背景参考，但仍以日记、笔记、语录和财务为准。",
+    "type": "bool",
+    "default": false
+  },
+  "enable_morning_briefing": {
+    "description": "启用晨报",
+    "hint": "关闭后 /briefing、晨报和定时晨报不生成。",
+    "type": "bool",
+    "default": true
+  },
+  "auto_polish": {
+    "description": "自动润色日记/笔记",
+    "hint": "开启后会请求 LLM 润色，同时保留原文。",
+    "type": "bool",
+    "default": false
+  },
+  "write_briefing_to_obsidian": {
+    "description": "晨报写入 Obsidian",
+    "hint": "开启后 /briefing 除了回复聊天，也写入 生活/总结/晨报/。",
+    "type": "bool",
+    "default": true
+  },
+  "enable_scheduler": {
+    "description": "启用定时任务",
+    "hint": "开启后会按下方时间尝试晨报、晚间询问、深夜今日总结和周报。QQ 官方号可能不支持主动推送，但仍可写入 Obsidian。",
+    "type": "bool",
+    "default": true
+  },
+  "push_target_session": {
+    "description": "定时推送目标会话",
+    "hint": "可留空；发送“推送到这里”后插件会记住当前会话作为推送目标。",
+    "type": "string",
+    "default": ""
+  },
+  "morning_briefing_time": {
+    "description": "晨报触发时间",
+    "hint": "24 小时制 HH:MM，例如 08:00。用于定时生成晨报。",
+    "type": "string",
+    "default": "08:00"
+  },
+  "evening_checkin_time": {
+    "description": "晚间总结询问时间",
+    "hint": "到点后询问“今天要不要总结？”。",
+    "type": "string",
+    "default": "22:00"
+  },
+  "daily_summary_time": {
+    "description": "今日总结触发时间",
+    "hint": "24 小时制 HH:MM，例如 23:55。到点后生成与手动“今日总结”一致的完整今日总结。",
+    "type": "string",
+    "default": "23:55"
+  },
+  "weekly_summary_day": {
+    "description": "周报星期",
+    "hint": "1=周一，7=周日。",
+    "type": "int",
+    "default": 7
+  },
+  "weekly_summary_time": {
+    "description": "周报时间",
+    "hint": "24 小时制 HH:MM，例如 21:30。",
+    "type": "string",
+    "default": "21:30"
+  },
+  "amap_weather_key": {
+    "description": "高德天气 API Key",
+    "hint": "只保存在 AstrBot 运行配置中，不要提交到 Git；留空则晨报跳过天气。",
+    "type": "string",
+    "default": "",
+    "obvious_hint": true
+  },
+  "amap_weather_city": {
+    "description": "高德天气城市 adcode",
+    "hint": "青岛为 370200，深圳为 440300。",
+    "type": "string",
+    "default": "370200"
+  },
+  "weather_city_name": {
+    "description": "天气城市显示名",
+    "hint": "用于晨报文案展示，建议填写中文城市名，例如 青岛。",
+    "type": "string",
+    "default": "青岛"
+  },
+  "timeout_seconds": {
+    "description": "writer 请求超时",
+    "hint": "调用 writer API 的总超时秒数。",
+    "type": "float",
+    "default": 12.0
+  },
+  "reply_on_success": {
+    "description": "写入成功后回复",
+    "hint": "开启后会在聊天中回复写入路径。",
+    "type": "bool",
+    "default": true
+  }
+}

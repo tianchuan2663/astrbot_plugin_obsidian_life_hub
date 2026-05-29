@@ -1,0 +1,5 @@
+.env
+.venv/
+.ssh-temp/
+__pycache__/
+*.py[cod]

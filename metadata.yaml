@@ -1,0 +1,17 @@
+name: astrbot_plugin_obsidian_life_hub
+display_name: Obsidian Life Hub
+desc: 通过 AstrBot 将聊天中的日记、笔记、记账、计划、备忘、健康记录和报告写入 Obsidian，并通过 writer 服务同步到 Git。
+short_desc: 面向 Obsidian 的生活记录与个人知识流入口。
+version: v0.1.0
+author: qwe
+repo: https://github.com/tianchuan2663/astrbot_plugin_obsidian_life_hub
+astrbot_version: ">=4.16,<5"
+support_platforms:
+  - qq_official
+  - aiocqhttp
+  - qq_official_webhook
+  - telegram
+  - wecom
+  - lark
+  - dingtalk
+  - discord
