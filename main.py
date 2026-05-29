@@ -1362,7 +1362,7 @@ class ObsidianLifeHubPlugin(Star):
             distance_km=intent.distance_km,
             status="已记录",
             record_uid=record_uid,
-            note=intent.note or intent.content,
+            note=intent.note,
             platform=event_platform(event),
             sender_id=event_sender_id(event),
         )
@@ -1375,7 +1375,7 @@ class ObsidianLifeHubPlugin(Star):
             unit=intent.unit,
             duration_minutes=intent.duration_minutes,
             distance_km=intent.distance_km,
-            note=intent.note or intent.content,
+            note=intent.note,
             status="已记录",
             record_uid=record_uid,
             markdown_path=result.get("path"),

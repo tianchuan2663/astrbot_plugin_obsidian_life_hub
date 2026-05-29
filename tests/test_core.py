@@ -512,6 +512,12 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(query.kind, "health_query")
         self.assertEqual(query.content, "week")
 
+    def test_health_write_keeps_empty_metric_note_empty(self):
+        main_text = (REPO_ROOT / "main.py").read_text(encoding="utf-8")
+
+        self.assertIn("note=intent.note,\n            platform=event_platform(event)", main_text)
+        self.assertIn("note=intent.note,\n            status=\"已记录\"", main_text)
+
     def test_explicit_collect_trigger(self):
         intent = classify_auto_record("收集，这个链接以后研究一下：https://example.com")
 
