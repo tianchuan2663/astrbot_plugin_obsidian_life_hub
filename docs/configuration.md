@@ -14,7 +14,7 @@
 |---|---|
 | `enabled` | 插件总开关。 |
 | `enable_auto_record` | 是否启用明确触发词记录。 |
-| `enable_inbox` | 是否启用 `/inbox` 原始收集。 |
+| `enable_inbox` | 是否启用“记 / 收集 / 存一下”原始收集。 |
 | `enable_native_future_task_bridge` | 是否把“提醒我...”桥接到 AstrBot 原生 future task。 |
 | `include_conversations_in_summaries` | 是否把普通聊天作为今日总结背景材料，默认关闭。 |
 

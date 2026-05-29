@@ -53,7 +53,7 @@ curl http://127.0.0.1:8787/health
 
 ```text
 Obsidian状态
-Obsidian帮助
+查看触发词
 随想 插件安装成功，写入链路开始测试
 ```
 

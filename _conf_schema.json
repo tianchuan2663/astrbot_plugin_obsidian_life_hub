@@ -92,13 +92,13 @@
   },
   "enable_inbox": {
     "description": "启用 Inbox 收件箱",
-    "hint": "开启后本插件接管 /记 和 /note，写入 raw/inbox/。",
+    "hint": "开启后支持“记 / 收集 / 存一下”写入 raw/inbox/。",
     "type": "bool",
     "default": true
   },
   "inbox_require_admin": {
     "description": "Inbox 要求管理员权限",
-    "hint": "开启后只有 AstrBot 管理员可以使用 /记 和 /note。",
+    "hint": "开启后只有 AstrBot 管理员可以使用“记 / 收集 / 存一下”。",
     "type": "bool",
     "default": true
   },
@@ -140,7 +140,7 @@
   },
   "enable_daily_summary": {
     "description": "启用日总结",
-    "hint": "关闭后 /summary、今日总结和定时今日总结不生成。",
+    "hint": "关闭后“今日总结”和定时今日总结不生成。",
     "type": "bool",
     "default": true
   },
@@ -152,7 +152,7 @@
   },
   "enable_morning_briefing": {
     "description": "启用晨报",
-    "hint": "关闭后 /briefing、晨报和定时晨报不生成。",
+    "hint": "关闭后“晨报”和定时晨报不生成。",
     "type": "bool",
     "default": true
   },
@@ -164,7 +164,7 @@
   },
   "write_briefing_to_obsidian": {
     "description": "晨报写入 Obsidian",
-    "hint": "开启后 /briefing 除了回复聊天，也写入 生活/总结/晨报/。",
+    "hint": "开启后“晨报”除了回复聊天，也写入 生活/总结/晨报/。",
     "type": "bool",
     "default": true
   },

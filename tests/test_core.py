@@ -66,6 +66,12 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(config.daily_summary_time, "23:55")
         self.assertEqual(config.weekly_summary_day, 7)
 
+    def test_only_trigger_help_is_registered_as_astrbot_command(self):
+        main_text = (REPO_ROOT / "main.py").read_text(encoding="utf-8")
+        command_lines = [line.strip() for line in main_text.splitlines() if line.strip().startswith("@filter.command(")]
+
+        self.assertEqual(command_lines, ['@filter.command("查看触发词")'])
+
     def test_schema_hides_legacy_config_keys(self):
         schema = json.loads((REPO_ROOT / "_conf_schema.json").read_text(encoding="utf-8"))
 
@@ -328,9 +334,14 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(classify_auto_record("系统状态").kind, "system_status")
         self.assertEqual(classify_auto_record("Obsidian状态").kind, "system_status")
         self.assertEqual(classify_auto_record("恢复索引").kind, "recover_index")
+        self.assertEqual(classify_auto_record("查看触发词").kind, "help")
+        self.assertEqual(classify_auto_record("使用帮助").kind, "help")
         self.assertEqual(classify_auto_record("记账帮助").kind, "help")
         self.assertEqual(classify_auto_record("Obsidian帮助").kind, "help")
+        self.assertEqual(classify_auto_record("晨报").kind, "briefing")
         self.assertEqual(classify_auto_record("今日总结").kind, "daily_summary")
+        self.assertEqual(classify_auto_record("日总结").kind, "daily_summary")
+        self.assertEqual(classify_auto_record("总结").kind, "daily_summary")
         self.assertEqual(classify_auto_record("日记草稿").kind, "diary_draft")
         self.assertEqual(classify_auto_record("语录周精选").kind, "quote_weekly")
         self.assertEqual(classify_auto_record("周报").kind, "weekly_summary")
@@ -492,24 +503,24 @@ class CoreTests(unittest.TestCase):
         )
 
     def test_strip_command_name_handles_qq_at_and_full_body(self):
-        self.assertEqual(strip_command_name("[At:qq_official] /finance 咖啡 18", ("finance",)), "咖啡 18")
-        self.assertEqual(strip_command_name("[At:qq_official] /finace 咖啡 18", ("finance", "finace")), "咖啡 18")
-        self.assertEqual(strip_command_name("/life_note 随想 洗澡回来测试|能写入生活层", ("life_note",)), "随想 洗澡回来测试|能写入生活层")
-        self.assertEqual(strip_command_name("记 #灵感 完整正文", ("记", "note")), "#灵感 完整正文")
+        self.assertEqual(strip_command_name("[At:qq_official] 记账 咖啡 18", ("记账",)), "咖啡 18")
+        self.assertEqual(strip_command_name("支出 咖啡 18", ("支出", "收入")), "咖啡 18")
+        self.assertEqual(strip_command_name("生活笔记 随想 洗澡回来测试|能写入生活层", ("生活笔记",)), "随想 洗澡回来测试|能写入生活层")
+        self.assertEqual(strip_command_name("记 #灵感 完整正文", ("记", "收集", "存一下")), "#灵感 完整正文")
 
     def test_command_body_prefers_full_event_text_over_truncated_arg(self):
-        event = FakeEvent("[At:qq_official] /diary #链路测试 我回来了，这是生活助手日记测试")
+        event = FakeEvent("[At:qq_official] 日记 #链路测试 我回来了，这是生活助手日记测试")
 
-        self.assertEqual(command_body(event, ("diary",), "#链路测试"), "#链路测试 我回来了，这是生活助手日记测试")
+        self.assertEqual(command_body(event, ("日记",), "#链路测试"), "#链路测试 我回来了，这是生活助手日记测试")
 
     def test_parse_leading_tag(self):
         self.assertEqual(parse_leading_tag("#链路测试 我回来了", "日记"), ("链路测试", "我回来了"))
         self.assertEqual(parse_leading_tag("没有标签", "日记"), ("日记", "没有标签"))
 
     def test_command_message_and_low_signal_message_detection(self):
-        self.assertTrue(is_command_message("[At:qq_official] /finace 咖啡 18", ("finance", "finace")))
-        self.assertTrue(is_command_message("/生活笔记 随想 标题|正文", ("生活笔记",)))
-        self.assertFalse(is_command_message("普通聊天", ("finance",)))
+        self.assertTrue(is_command_message("[At:qq_official] 记账 咖啡 18", ("记账",)))
+        self.assertTrue(is_command_message("生活笔记 随想 标题|正文", ("生活笔记",)))
+        self.assertFalse(is_command_message("普通聊天", ("记账",)))
         self.assertTrue(is_low_signal_life_message("支出"))
         self.assertFalse(is_low_signal_life_message("支出 咖啡 18"))
 

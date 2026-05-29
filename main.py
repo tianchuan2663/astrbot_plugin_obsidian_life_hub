@@ -44,14 +44,12 @@ from .writer_client import WriterClient
 
 
 PLUGIN_NAME = "astrbot_plugin_obsidian_life_hub"
-INBOX_COMMANDS = ("记", "note")
-DIARY_COMMANDS = ("diary", "日记")
-NOTE_COMMANDS = ("life_note", "life-note", "生活笔记", "笔记")
-FINANCE_COMMANDS = ("finance", "finace", "记账", "账目")
+INBOX_COMMANDS = ("记", "收集", "存一下")
+DIARY_COMMANDS = ("日记",)
+NOTE_COMMANDS = ("生活笔记", "笔记")
+FINANCE_COMMANDS = ("记账", "账目")
 FINANCE_RECORD_COMMANDS = FINANCE_COMMANDS + ("支出", "收入", "借入", "借出", "还款", "收款", "转账")
 FINANCE_QUERY_COMMANDS = (
-    "finance_query",
-    "finance-query",
     "今日财务",
     "本周财务",
     "本月财务",
@@ -63,10 +61,8 @@ FINANCE_QUERY_COMMANDS = (
 )
 FINANCE_CANCEL_COMMANDS = ("作废账目", "删除账目")
 FINANCE_UPDATE_COMMANDS = ("修改账目", "改账目")
-PLAN_COMMANDS = ("plan", "计划")
+PLAN_COMMANDS = ("计划",)
 PLAN_QUERY_COMMANDS = (
-    "plans",
-    "my-plans",
     "我的计划",
     "计划清单",
     "所有计划",
@@ -76,23 +72,23 @@ PLAN_QUERY_COMMANDS = (
     "长期计划",
     "空闲计划",
 )
-PLAN_DONE_COMMANDS = ("done_plan", "done-plan", "完成计划")
+PLAN_DONE_COMMANDS = ("完成计划",)
 PLAN_CANCEL_COMMANDS = ("取消计划", "删除计划", "作废计划")
 PLAN_UPDATE_COMMANDS = ("修改计划", "改计划")
 PLAN_POSTPONE_COMMANDS = ("推迟计划",)
 PLAN_START_COMMANDS = ("开始计划",)
 PLAN_REVIEW_COMMANDS = ("计划复盘",)
-HEALTH_COMMANDS = ("health", "健康", "体重", "跑步", "睡眠", "健身", "运动")
-HEALTH_QUERY_COMMANDS = ("health_query", "health-query", "今日健康", "本周健康", "本月健康", "健康概览")
+HEALTH_COMMANDS = ("健康", "体重", "跑步", "睡眠", "健身", "运动")
+HEALTH_QUERY_COMMANDS = ("今日健康", "本周健康", "本月健康", "健康概览")
 CONFIRM_COMMANDS = ("确认", "确认写入", "取消", "取消写入")
 STATUS_COMMANDS = ("系统状态", "Obsidian状态")
-HELP_COMMANDS = ("Obsidian帮助", "记账帮助", "计划帮助", "健康帮助", "总结帮助")
+HELP_COMMANDS = ("查看触发词", "Obsidian帮助", "使用帮助", "记账帮助", "计划帮助", "健康帮助", "总结帮助")
 RECOVERY_COMMANDS = ("恢复索引", "重建索引")
-BRIEFING_COMMANDS = ("briefing", "晨报")
-SUMMARY_COMMANDS = ("summary", "总结", "日总结", "今日总结")
-DIARY_DRAFT_COMMANDS = ("diary_draft", "diary-draft", "日记草稿")
-QUOTE_WEEKLY_COMMANDS = ("quote_weekly", "quote-weekly", "语录周精选")
-WEEKLY_SUMMARY_COMMANDS = ("weekly_summary", "weekly-summary", "周报")
+BRIEFING_COMMANDS = ("晨报",)
+SUMMARY_COMMANDS = ("今日总结", "日总结", "总结")
+DIARY_DRAFT_COMMANDS = ("日记草稿",)
+QUOTE_WEEKLY_COMMANDS = ("语录周精选",)
+WEEKLY_SUMMARY_COMMANDS = ("周报",)
 ALL_COMMANDS = (
     INBOX_COMMANDS
     + DIARY_COMMANDS
@@ -122,8 +118,7 @@ ALL_COMMANDS = (
     + WEEKLY_SUMMARY_COMMANDS
 )
 
-
-@register(PLUGIN_NAME, "qwe", "Obsidian Life Hub", "0.1.0")
+@register(PLUGIN_NAME, "qwe", "Obsidian Life Hub", "0.1.1")
 class ObsidianLifeHubPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
@@ -274,7 +269,6 @@ class ObsidianLifeHubPlugin(Star):
         if text.strip():
             await self.db.add_conversation_log(event_session_id(event), "assistant", text.strip())
 
-    @filter.command("life")
     async def cmd_life(self, event: AstrMessageEvent):
         """查看 Obsidian Life Hub 状态。"""
         if not self.config.enabled:
@@ -286,17 +280,17 @@ class ObsidianLifeHubPlugin(Star):
             "Obsidian Life Hub 已启用。\n"
             f"- writer: {self.config.writer_base_url}（{writer_state}）\n"
             f"- 天气: {weather_state}\n"
-            "- 命令: /记、/note、/diary、/life_note、/finance、/plan、/briefing、/summary"
+            "- 总指令: 查看触发词\n"
+            "- 常用触发: 记账、计划、备忘、随想、语录、体重、晨报、今日总结"
         )
 
-    @filter.command("obsidian_status", alias={"系统状态", "Obsidian状态", "second_brain_status"})
     async def cmd_status(self, event: AstrMessageEvent, content: str = ""):
         """查看 writer、Git、SQLite 索引和待确认状态。"""
         yield event.plain_result(await self._system_status(event))
 
-    @filter.command("obsidian_help", alias={"Obsidian帮助", "second_brain_help", "记账帮助", "计划帮助", "健康帮助", "总结帮助"})
+    @filter.command("查看触发词")
     async def cmd_help(self, event: AstrMessageEvent, content: str = ""):
-        """查看 Obsidian Life Hub 帮助。"""
+        """查看所有聊天触发词。"""
         message = event_message_text(event)
         topic = "all"
         if "记账帮助" in message:
@@ -309,14 +303,12 @@ class ObsidianLifeHubPlugin(Star):
             topic = "summary"
         yield event.plain_result(self._help_text(topic))
 
-    @filter.command("recover_index", alias={"恢复索引", "重建索引"})
     async def cmd_recover_index(self, event: AstrMessageEvent, content: str = ""):
         """从 Obsidian Markdown 重建插件 SQLite 索引。"""
         yield event.plain_result(await self._recover_index(event))
 
-    @filter.command("记", alias={"note"})
     async def cmd_inbox(self, event: AstrMessageEvent, content: str = ""):
-        """写入 raw/inbox。用法：/记 #灵感 这里是内容"""
+        """写入 raw/inbox。用法：记 #灵感 这里是内容"""
         if not self.config.enable_inbox:
             yield event.plain_result("Inbox 记录功能已关闭。")
             return
@@ -338,7 +330,7 @@ class ObsidianLifeHubPlugin(Star):
         await self._remember_session(event)
         body = command_body(event, INBOX_COMMANDS, content)
         if not body:
-            yield event.plain_result("请在 /记 后面输入要写入 Obsidian 的内容。")
+            yield event.plain_result("请在“记”后面输入要写入 Obsidian 的内容。")
             return
         result = await self.writer.append_inbox(
             platform=event_platform(event),
@@ -350,38 +342,35 @@ class ObsidianLifeHubPlugin(Star):
         await self._remember_write(event, action_type="inbox", trigger="/记", result=result, original_text=body)
         yield event.plain_result(self._format_inbox_reply(result))
 
-    @filter.command("diary", alias={"日记"})
     async def cmd_diary(self, event: AstrMessageEvent, content: str = ""):
-        """写生活日记。用法：/diary 今天很开心"""
+        """写生活日记。用法：日记 今天很开心"""
         if not self.config.enable_diary:
             yield event.plain_result("日记记录功能已关闭。")
             return
         body = command_body(event, DIARY_COMMANDS, content)
         if not body:
-            yield event.plain_result("请在 /diary 后面输入要记录的内容。")
+            yield event.plain_result("请在“日记”后面输入要记录的内容。")
             return
         category, diary_content = parse_leading_tag(body, "日记")
         result = await self._record_diary(event, content=diary_content, category=category)
         yield event.plain_result(self._format_write_reply("日记", result))
 
-    @filter.command("life_note", alias={"life-note", "生活笔记", "笔记"})
     async def cmd_note(self, event: AstrMessageEvent, content: str = ""):
-        """写生活笔记。用法：/life_note 游戏 标题|内容"""
+        """写生活笔记。用法：生活笔记 游戏 标题|内容"""
         if not self.config.enable_notes:
             yield event.plain_result("生活笔记功能已关闭。")
             return
         body = command_body(event, NOTE_COMMANDS, content)
         parsed = parse_note_command(body)
         if not parsed:
-            yield event.plain_result("用法：/life_note <类型> <标题>|<内容>，例如 /life_note 游戏 黑神话|战斗节奏很重要")
+            yield event.plain_result("用法：生活笔记 <类型> <标题>|<内容>，例如 生活笔记 游戏 黑神话|战斗节奏很重要")
             return
         note_type, title, body = parsed
         result = await self._write_note(event, note_type=note_type, title=title, content=body)
         yield event.plain_result(self._format_write_reply("笔记", result))
 
-    @filter.command("finance", alias={"finace", "记账", "账目", "支出", "收入", "借入", "借出", "还款", "收款", "转账"})
     async def cmd_finance(self, event: AstrMessageEvent, content: str = ""):
-        """记录财务。用法：/finance 午饭 18"""
+        """记录财务。用法：记账 午饭 18"""
         if not self.config.enable_finance:
             yield event.plain_result("记账功能已关闭。")
             return
@@ -389,7 +378,7 @@ class ObsidianLifeHubPlugin(Star):
         trigger = _finance_trigger_from_message(event_message_text(event))
         parsed = parse_finance_record(body, direction_override=_direction_from_finance_trigger(trigger))
         if not parsed:
-            yield event.plain_result("用法：/finance 午饭 18，或 借出 给张三100元 微信")
+            yield event.plain_result("用法：记账 午饭 18，或 借出 给张三100元 微信")
             return
         result = await self._record_finance(
             event,
@@ -403,15 +392,13 @@ class ObsidianLifeHubPlugin(Star):
         )
         yield event.plain_result(self._format_write_reply("账目", result))
 
-    @filter.command("finance_query", alias={"finance-query", "今日财务", "本周财务", "本月财务", "借贷情况", "钱包统计"})
     async def cmd_finance_query(self, event: AstrMessageEvent, content: str = ""):
         """查询财务概览。"""
         result = await self._query_finance(event, _finance_query_from_message(event_message_text(event)))
         yield event.plain_result(result)
 
-    @filter.command("plan", alias={"计划"})
     async def cmd_plan(self, event: AstrMessageEvent, content: str = ""):
-        """记录计划。用法：/plan 明天 整理插件配置"""
+        """记录计划。用法：计划 明天 整理插件配置"""
         if not self.config.enable_plans:
             yield event.plain_result("计划功能已关闭。")
             return
@@ -424,16 +411,14 @@ class ObsidianLifeHubPlugin(Star):
         result = await self._record_plan(event, plan_intent)
         yield event.plain_result(self._format_write_reply("计划", result))
 
-    @filter.command("plans", alias={"my-plans", "我的计划", "计划清单", "所有计划", "今日计划", "本周计划", "本月计划", "长期计划", "空闲计划"})
     async def cmd_plans(self, event: AstrMessageEvent, content: str = ""):
         """查询计划。"""
         message = event_message_text(event)
         result = await self._query_plans(event, _plan_query_from_message(message))
         yield event.plain_result(result)
 
-    @filter.command("done_plan", alias={"done-plan", "完成计划"})
     async def cmd_done_plan(self, event: AstrMessageEvent, content: str = ""):
-        """完成计划。用法：/done_plan 关键词"""
+        """完成计划。用法：完成计划 关键词"""
         body = command_body(event, PLAN_DONE_COMMANDS, content)
         if not body:
             yield event.plain_result("请提供要完成的计划关键词。")
@@ -441,7 +426,6 @@ class ObsidianLifeHubPlugin(Star):
         result = await self._complete_plan(event, body)
         yield event.plain_result(result)
 
-    @filter.command("postpone_plan", alias={"推迟计划"})
     async def cmd_postpone_plan(self, event: AstrMessageEvent, content: str = ""):
         """推迟计划。用法：推迟计划 整理宿舍 到 明天"""
         body = command_body(event, PLAN_POSTPONE_COMMANDS, content)
@@ -451,7 +435,6 @@ class ObsidianLifeHubPlugin(Star):
             return
         yield event.plain_result(await self._postpone_plan(event, intent))
 
-    @filter.command("start_plan", alias={"开始计划"})
     async def cmd_start_plan(self, event: AstrMessageEvent, content: str = ""):
         """标记计划进行中。"""
         body = command_body(event, PLAN_START_COMMANDS, content)
@@ -460,36 +443,30 @@ class ObsidianLifeHubPlugin(Star):
             return
         yield event.plain_result(await self._start_plan(event, body))
 
-    @filter.command("plan_review", alias={"计划复盘"})
     async def cmd_plan_review(self, event: AstrMessageEvent, content: str = ""):
         """生成计划复盘。"""
         yield event.plain_result(await self._review_plans(event))
 
-    @filter.command("briefing", alias={"晨报"})
     async def cmd_briefing(self, event: AstrMessageEvent, content: str = ""):
         """生成今日晨报。"""
         result = await self._generate_briefing(event)
         yield event.plain_result(result)
 
-    @filter.command("summary", alias={"总结", "日总结", "今日总结"})
     async def cmd_summary(self, event: AstrMessageEvent, content: str = ""):
         """生成今日日总结。"""
         result = await self._generate_daily_summary(event)
         yield event.plain_result(result)
 
-    @filter.command("diary_draft", alias={"diary-draft", "日记草稿"})
     async def cmd_diary_draft(self, event: AstrMessageEvent, content: str = ""):
         """生成今日日记草稿。"""
         result = await self._generate_diary_draft(event)
         yield event.plain_result(result)
 
-    @filter.command("quote_weekly", alias={"quote-weekly", "语录周精选"})
     async def cmd_quote_weekly(self, event: AstrMessageEvent, content: str = ""):
         """生成本周语录精选。"""
         result = await self._generate_quote_weekly(event)
         yield event.plain_result(result)
 
-    @filter.command("weekly_summary", alias={"weekly-summary", "周报"})
     async def cmd_weekly_summary(self, event: AstrMessageEvent, content: str = ""):
         """生成本周周报。"""
         result = await self._generate_weekly_summary(event)
@@ -522,6 +499,9 @@ class ObsidianLifeHubPlugin(Star):
 
         if intent.kind == "amend":
             return await self._amend_last_write(event, intent.content)
+
+        if intent.kind == "briefing":
+            return await self._generate_briefing(event)
 
         if intent.kind == "diary_draft":
             return await self._generate_diary_draft(event, date_text=intent.date)
@@ -1830,57 +1810,74 @@ class ObsidianLifeHubPlugin(Star):
         help_map = {
             "finance": (
                 "记账帮助\n"
-                "- 支出 午饭9元 支付宝\n"
-                "- 收入 兼职500元 中国银行\n"
-                "- 借出 给张三100元 微信\n"
-                "- 作废账目 午饭\n"
-                "- 修改账目 午饭 为 支出 午饭10元 支付宝\n"
-                "- 今日财务 / 本周财务 / 本月财务 / 借贷情况 / 钱包统计 / 预算情况\n"
-                "- 财务周报 / 财务月报"
+                "| 目的 | 触发词与示例 |\n"
+                "|---|---|\n"
+                "| 支出 | 支出 午饭9元 支付宝 |\n"
+                "| 收入 | 收入 兼职500元 中国银行 |\n"
+                "| 借贷 | 借出 给张三100元 微信 / 还款 张三100元 |\n"
+                "| 查询 | 今日财务 / 本周财务 / 本月财务 / 借贷情况 / 钱包统计 / 预算情况 |\n"
+                "| 修正 | 作废账目 午饭 / 修改账目 午饭 为 支出 午饭10元 支付宝 / 撤销上一条 |"
             ),
             "plan": (
                 "计划帮助\n"
-                "- 计划 明天 高优先级 整理插件配置\n"
-                "- 计划 本周 完成部署手册\n"
-                "- 计划 长期 去青岛周边旅行\n"
-                "- 备忘 明天 18:00 交材料\n"
-                "- 今日备忘 / 近期备忘 / 我的备忘\n"
-                "- 完成计划 插件\n"
-                "- 开始计划 插件\n"
-                "- 推迟计划 插件 到 明天\n"
-                "- 取消计划 清单\n"
-                "- 修改计划 插件 为 明天 整理插件配置\n"
-                "- 今日计划 / 本周计划 / 本月计划 / 长期计划 / 空闲计划 / 计划复盘"
+                "| 目的 | 触发词与示例 |\n"
+                "|---|---|\n"
+                "| 记录 | 计划 明天 高优先级 整理插件配置 |\n"
+                "| 长期 | 计划 长期 去青岛周边旅行 |\n"
+                "| 备忘 | 备忘 明天 18:00 交材料 |\n"
+                "| 查询 | 今日计划 / 本周计划 / 本月计划 / 长期计划 / 空闲计划 / 今日备忘 / 近期备忘 |\n"
+                "| 闭环 | 开始计划 插件 / 完成计划 插件 / 推迟计划 插件 到 明天 / 计划复盘 |"
             ),
             "health": (
                 "健康帮助\n"
-                "- 体重 75.5kg\n"
-                "- 跑步 5公里 30分钟\n"
-                "- 睡眠 7.5小时\n"
-                "- 健身 胸背训练 45分钟\n"
-                "- 今日健康 / 本周健康 / 本月健康"
+                "| 目的 | 触发词与示例 |\n"
+                "|---|---|\n"
+                "| 体重 | 体重 75.5kg |\n"
+                "| 运动 | 跑步 5公里 30分钟 / 健身 胸背训练 45分钟 |\n"
+                "| 睡眠 | 睡眠 7.5小时 |\n"
+                "| 查询 | 今日健康 / 本周健康 / 本月健康 / 健康概览 |"
             ),
             "summary": (
                 "总结帮助\n"
-                "- 晨报：天气、计划和备忘提醒\n"
-                "- 今日总结：待办提醒、财务简讯和日记草稿\n"
-                "- 周报\n"
-                "- 语录周精选\n"
-                "- 推送到这里\n"
-                "可在配置里调整晨报、晚间询问、今日总结和周报时间。"
+                "| 目的 | 触发词与示例 |\n"
+                "|---|---|\n"
+                "| 晨间 | 晨报 |\n"
+                "| 当日 | 今日总结 / 日记草稿 |\n"
+                "| 每周 | 周报 / 语录周精选 |\n"
+                "| 推送 | 推送到这里 |\n"
+                "手动触发与定时推送使用同一套内容生成逻辑。"
             ),
         }
         if topic in help_map:
             return help_map[topic]
         return (
-            f"{self.config.assistant_display_name}帮助\n"
-            "- 记账帮助：财务、借贷、钱包、作废和修改\n"
-            "- 计划帮助：日计划、周计划、长期计划、开始/完成/推迟/复盘\n"
-            "- 备忘 明天 18:00 交材料：记录 DDL；插件不占用 AstrBot 原生提醒\n"
-            "- 健康帮助：体重、跑步、睡眠、健身和趋势\n"
-            "- 总结帮助：晨报、日总结、周报和定时推送\n"
-            "- 系统状态：检查 writer、Git、待确认和索引数量\n"
-            "- 恢复索引：从 Obsidian Markdown 重建插件 SQLite 索引"
+            f"{self.config.assistant_display_name} 触发词总览\n"
+            "在聊天里直接发送中文触发词即可；AstrBot 管理行为里只保留“查看触发词”这一条总指令。\n\n"
+            "【快速开始】\n"
+            "| 想做什么 | 发送示例 | 写入/动作 |\n"
+            "|---|---|---|\n"
+            "| 记一笔支出 | 支出 午饭9元 支付宝 | 财务月表 |\n"
+            "| 记录计划 | 计划 明天 高优先级 整理插件配置 | 计划清单 |\n"
+            "| 记录备忘 | 备忘 明天 18:00 交材料 | 备忘表，用于晨报/总结 |\n"
+            "| 写日记素材 | 日记 今天把插件指令收敛好了 | 当日日记 |\n"
+            "| 写随想 | 随想 通用插件要保持轻入口 | 随想笔记 |\n"
+            "| 存语录 | 语录 抖音｜某账号｜保持稳定比偶尔热血更重要｜#自律｜提醒我持续 | 语录笔记 |\n"
+            "| 记健康 | 跑步 5公里 30分钟 | 健康月表 |\n"
+            "| 原始收集 | 收集 这个链接以后研究一下 | raw/inbox |\n\n"
+            "【财务】\n"
+            "记账、支出、收入、借入、借出、还款、收款、转账；查询：今日财务、本周财务、本月财务、借贷情况、钱包统计、预算情况、财务周报、财务月报。\n"
+            "修正：作废账目、删除账目、修改账目、改账目、撤销上一条、改上一条。\n\n"
+            "【计划与备忘】\n"
+            "计划、备忘、备忘录、DDL；查询：我的计划、今日计划、本周计划、本月计划、长期计划、空闲计划、今日备忘、近期备忘、我的备忘。\n"
+            "闭环：开始计划、完成计划、推迟计划、取消计划、修改计划、计划复盘。\n\n"
+            "【日记、笔记、语录】\n"
+            "日记、记事、随想、语录、补记。补记示例：补记 昨天 21:30 日记 和朋友散步。\n\n"
+            "【健康】\n"
+            "体重、跑步、睡眠、健身、运动；查询：今日健康、本周健康、本月健康、健康概览。\n\n"
+            "【报告与系统】\n"
+            "晨报、今日总结、日总结、总结、日记草稿、周报、语录周精选、推送到这里、Obsidian状态、恢复索引、查看触发词。\n\n"
+            "【和 AstrBot 原生提醒的边界】\n"
+            "“提醒我 明天 20:00 跑步”会创建 AstrBot 原生未来任务；“备忘 明天 20:00 交材料”会写入 Obsidian 备忘。"
         )
 
     async def _set_push_target(self, event: AstrMessageEvent) -> str:
@@ -2177,7 +2174,7 @@ def _finance_query_from_message(message: str) -> str:
 
 def _finance_trigger_from_message(message: str) -> str:
     text = str(message or "").lstrip("/")
-    for trigger in ("借入", "借出", "还款", "收款", "转账", "支出", "收入", "记账", "账目", "finance", "finace"):
+    for trigger in ("借入", "借出", "还款", "收款", "转账", "支出", "收入", "记账", "账目"):
         if text.startswith(trigger):
             return trigger
     return "记账"

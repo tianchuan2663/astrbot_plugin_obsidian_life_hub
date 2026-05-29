@@ -13,7 +13,10 @@ NO_BODY_TRIGGERS = {
     "确认",
     "取消",
     "撤销上一条",
+    "晨报",
     "今日总结",
+    "日总结",
+    "总结",
     "日记草稿",
     "语录周精选",
     "周报",
@@ -44,11 +47,11 @@ NO_BODY_TRIGGERS = {
     "健康概览",
     "系统状态",
     "Obsidian状态",
-    "Obsidian状态",
     "恢复索引",
     "重建索引",
+    "查看触发词",
     "Obsidian帮助",
-    "Obsidian帮助",
+    "使用帮助",
     "记账帮助",
     "计划帮助",
     "健康帮助",
@@ -57,10 +60,17 @@ NO_BODY_TRIGGERS = {
 TRIGGERS = (
     "确认写入",
     "取消写入",
-    "Obsidian状态",
+    "查看触发词",
     "Obsidian帮助",
+    "使用帮助",
+    "记账帮助",
+    "计划帮助",
+    "健康帮助",
+    "总结帮助",
     "Obsidian状态",
-    "Obsidian帮助",
+    "系统状态",
+    "恢复索引",
+    "重建索引",
     "语录周精选",
     "撤销上一条",
     "推送到这里",
@@ -99,15 +109,11 @@ TRIGGERS = (
     "本周健康",
     "本月健康",
     "健康概览",
-    "系统状态",
-    "恢复索引",
-    "重建索引",
-    "记账帮助",
-    "计划帮助",
-    "健康帮助",
-    "总结帮助",
+    "晨报",
     "今日总结",
     "日记草稿",
+    "日总结",
+    "总结",
     "改上一条",
     "改计划",
     "存一下",
@@ -137,6 +143,7 @@ TRIGGERS = (
     "周报",
     "确认",
     "取消",
+    "记",
 )
 SEPARATORS = " \t，,。:：、"
 DATE_RE = re.compile(r"^(\d{4})-(\d{1,2})-(\d{1,2})(?:\s+|[,，:：、]*)")
@@ -213,10 +220,11 @@ def classify_auto_record(message: str, *, mode: str = "explicit") -> AutoRecordI
         return AutoRecordIntent(kind="system_status", confidence=1.0, reason="explicit_status_trigger", trigger=parsed.trigger)
     if parsed.trigger in {"恢复索引", "重建索引"}:
         return AutoRecordIntent(kind="recover_index", confidence=1.0, reason="explicit_recovery_trigger", trigger=parsed.trigger)
-    if parsed.trigger in {"Obsidian帮助", "记账帮助", "计划帮助", "健康帮助", "总结帮助"}:
+    if parsed.trigger in {"查看触发词", "Obsidian帮助", "使用帮助", "记账帮助", "计划帮助", "健康帮助", "总结帮助"}:
         help_topic = {
+            "查看触发词": "all",
             "Obsidian帮助": "all",
-            "Obsidian帮助": "all",
+            "使用帮助": "all",
             "记账帮助": "finance",
             "计划帮助": "plan",
             "健康帮助": "health",
@@ -386,10 +394,13 @@ def classify_auto_record(message: str, *, mode: str = "explicit") -> AutoRecordI
             content=body,
             trigger=parsed.trigger,
         )
-    if parsed.trigger in {"今日总结", "日记草稿", "语录周精选", "周报"}:
+    if parsed.trigger in {"晨报", "今日总结", "日总结", "总结", "日记草稿", "语录周精选", "周报"}:
         meta = _parse_record_meta(parsed.body) if parsed.body else ParsedRecordMeta(body="")
         kind = {
+            "晨报": "briefing",
             "今日总结": "daily_summary",
+            "日总结": "daily_summary",
+            "总结": "daily_summary",
             "日记草稿": "diary_draft",
             "语录周精选": "quote_weekly",
             "周报": "weekly_summary",
@@ -534,7 +545,7 @@ def _build_record_intent(trigger: str, body: str, meta: ParsedRecordMeta) -> Aut
         return _build_reminder_intent(trigger, body, meta)
     if trigger in {"体重", "跑步", "睡眠", "健身", "运动"}:
         return _build_health_intent(trigger, body, meta)
-    if trigger in {"收集", "存一下"}:
+    if trigger in {"收集", "存一下", "记"}:
         return AutoRecordIntent(
             kind="inbox",
             confidence=1.0,
