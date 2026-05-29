@@ -930,6 +930,9 @@ def _parse_plan_scope(body: str, *, has_target_date: bool) -> tuple[str, str]:
         ("这个月", "短期"),
         ("近期", "短期"),
         ("最近", "短期"),
+        ("过几天", "短期"),
+        ("这几天", "短期"),
+        ("几天内", "短期"),
     )
     for prefix, scope in scope_rules:
         if value.startswith(prefix):

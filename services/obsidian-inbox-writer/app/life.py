@@ -92,7 +92,7 @@ class PlanRecord:
     time: str
     title: str
     content: str
-    plan_scope: str = "近期"
+    plan_scope: str = "其它"
     priority: str = "中"
     status: str = "未开始"
     target_date: str | None = None
@@ -187,14 +187,14 @@ def append_finance_record(vault_root: Path, item: FinanceRecord) -> LifeWriteRes
     if not path.exists():
         _write_text(path, _initial_finance_content(item.date))
 
-    note = _with_record_meta(_finance_note(item), "finance", item.record_uid, item.platform, item.sender_id)
+    note = _finance_note(item)
     row = (
         f"| {_one_line(item.date)} | {_one_line(item.time)} | "
         f"{_one_line(item.direction)} | {_format_amount(item.amount)} | "
         f"{_one_line(item.category)} | {_table_cell(item.wallet)} | "
-        f"{_table_cell(item.counterparty)} | {_one_line(item.status)} | {note} |\n"
+        f"{_table_cell(item.counterparty)} | {_one_line(item.status)} | {_table_cell(note)} |\n"
     )
-    _append_text(path, row)
+    _append_text(path, _row_with_record_meta(row, "finance", item.record_uid, item.platform, item.sender_id))
     return _result(root, path, "finance")
 
 
@@ -226,12 +226,11 @@ def append_plan_record(vault_root: Path, item: PlanRecord) -> LifeWriteResult:
 
     section = _plan_section(item.plan_scope)
     start_time = _join_date_time(item.target_date, item.target_time)
-    note = _with_record_meta("", "plan", item.record_uid, item.platform, item.sender_id)
     row = (
         f"| {_table_cell(item.content or item.title)} | {_one_line(item.status)} | "
-        f"{_table_cell(start_time)} |  | {_one_line(item.date)} | {_table_cell(note)} |\n"
+        f"{_table_cell(start_time)} |  | {_one_line(item.date)} |  |\n"
     )
-    _append_row_to_section(path, section, row)
+    _append_row_to_section(path, section, _row_with_record_meta(row, "plan", item.record_uid, item.platform, item.sender_id))
     return _result(root, path, "plan")
 
 
@@ -243,15 +242,15 @@ def append_health_record(vault_root: Path, item: HealthRecord) -> LifeWriteResul
     if not path.exists():
         _write_text(path, _initial_health_content(item.date))
 
-    note = _with_record_meta(_health_note(item), "health", item.record_uid, item.platform, item.sender_id)
+    note = _health_note(item)
     row = (
         f"| {_one_line(item.date)} | {_one_line(item.time)} | {_one_line(item.metric_type)} | "
         f"{_table_cell(_format_optional_number(item.value))} | {_table_cell(item.unit)} | "
         f"{_table_cell(_format_optional_number(item.duration_minutes))} | "
         f"{_table_cell(_format_optional_number(item.distance_km))} | {_one_line(item.status)} | "
-        f"{note} |\n"
+        f"{_table_cell(note)} |\n"
     )
-    _append_text(path, row)
+    _append_text(path, _row_with_record_meta(row, "health", item.record_uid, item.platform, item.sender_id))
     return _result(root, path, "health")
 
 
@@ -543,25 +542,24 @@ def _health_note(item: HealthRecord) -> str:
 
 def _note_table_row(item: LifeNote) -> str:
     category = _note_category(item.category)
-    meta = _record_meta_comment("note", item.record_uid, item.platform, item.sender_id)
     if category == "语录笔记":
         fields = _quote_fields(item)
-        comment = _with_record_meta(fields["comment"], "note", item.record_uid, item.platform, item.sender_id)
-        return (
+        row = (
             f"| {_one_line(item.date)} | {_table_cell(fields['source'])} | {_table_cell(fields['author'])} | "
-            f"{_table_cell(fields['quote'])} | {_table_cell(fields['tags'])} | {_table_cell(comment)} |\n"
+            f"{_table_cell(fields['quote'])} | {_table_cell(fields['tags'])} | {_table_cell(fields['comment'])} |\n"
         )
+        return _row_with_record_meta(row, "note", item.record_uid, item.platform, item.sender_id)
     if category == REMINDER_FOLDER:
         due_date, due_time, body = _reminder_fields(item.content)
-        created = _with_record_meta(item.date, "reminder", item.record_uid, item.platform, item.sender_id)
-        return (
+        row = (
             f"| {_table_cell(body)} | {_table_cell(due_date)} | {_table_cell(due_time)} | "
-            f"未完成 | {_table_cell(created)} |\n"
+            f"未完成 | {_one_line(item.date)} |\n"
         )
+        return _row_with_record_meta(row, "reminder", item.record_uid, item.platform, item.sender_id)
     content = _table_cell(_strip_note_labels(item.content))
     tags = _tags_from_text(item.content)
-    remark = _with_record_meta("", "note", item.record_uid, item.platform, item.sender_id)
-    return f"| {_one_line(item.date)} | {content} | {_table_cell(tags)} | {_table_cell(remark)} |\n"
+    row = f"| {_one_line(item.date)} | {content} | {_table_cell(tags)} |  |\n"
+    return _row_with_record_meta(row, "note", item.record_uid, item.platform, item.sender_id)
 
 
 def _note_category(category: str) -> str:
@@ -631,18 +629,18 @@ def _tags_from_text(text: str) -> str:
     return " ".join(f"#{tag}" for tag in tags)
 
 
-def _with_record_meta(
-    visible: str,
+def _row_with_record_meta(
+    row: str,
     kind: str,
     record_uid: str | None,
     platform: str | None,
     sender_id: str | None,
 ) -> str:
     comment = _record_meta_comment(kind, record_uid, platform, sender_id)
-    text = str(visible or "").strip()
+    line = str(row or "").rstrip("\n")
     if not comment:
-        return text
-    return f"{text}{comment}" if text else comment.strip()
+        return f"{line}\n"
+    return f"{line} {comment}\n"
 
 
 def _record_meta_comment(kind: str, record_uid: str | None, platform: str | None, sender_id: str | None) -> str:
@@ -715,7 +713,7 @@ def _update_plan_row_status(
         if note:
             visible_note = _strip_hidden_metadata(cells[5])
             cells[5] = _table_cell(f"{visible_note}；{_one_line(note)}" if visible_note else _one_line(note))
-        lines[index] = "| " + " | ".join(_table_cell(cell) for cell in cells) + " |"
+        lines[index] = "| " + " | ".join(_table_cell(cell) for cell in cells) + " |" + _hidden_metadata_suffix(line)
         changed = True
         break
     if changed:
@@ -852,7 +850,7 @@ def _parse_health_markdown(root: Path, path: Path) -> list[dict[str, object]]:
 
 
 def _markdown_table_cells(line: str) -> list[str]:
-    text = line.strip()
+    text = _strip_hidden_metadata(line).strip()
     if not text.startswith("|") or not text.endswith("|"):
         return []
     return [_clean_cell(cell) for cell in text.strip("|").split("|")]
@@ -874,6 +872,11 @@ def _strip_record_uid(text: str) -> str:
 
 def _strip_hidden_metadata(text: str) -> str:
     return re.sub(r"\s*<!--\s*olh\b.*?-->\s*", "", str(text or "")).strip()
+
+
+def _hidden_metadata_suffix(text: str) -> str:
+    match = re.search(r"\s*(<!--\s*olh\b.*?-->)\s*$", str(text or ""))
+    return f" {match.group(1)}" if match else ""
 
 
 def _metadata_to_text(text: str) -> str:

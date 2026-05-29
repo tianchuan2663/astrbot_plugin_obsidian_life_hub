@@ -78,7 +78,7 @@ class LifeWriterTests(unittest.TestCase):
 
         self.assertEqual(result.relative_path, "生活/笔记/随想笔记/2026-05 随想笔记.md")
         self.assertIn("| 日期 | 内容 | 标签 | 备注 |", content)
-        self.assertIn("| 2026-05-27 | 把战斗节奏单独整理一篇。 |  | <!-- olh kind=note;record_id=note-1", content)
+        self.assertIn("| 2026-05-27 | 把战斗节奏单独整理一篇。 |  |  | <!-- olh kind=note;record_id=note-1", content)
 
     def test_append_finance_record_appends_monthly_table(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -113,8 +113,9 @@ class LifeWriterTests(unittest.TestCase):
         self.assertEqual(result.relative_path, "生活/财务/2026-05 财务.md")
         self.assertIn("# 2026-05 财务", content)
         self.assertIn("| 日期 | 时间 | 类型 | 金额 | 类别 | 钱包/渠道 | 对象 | 状态 | 备注 |", content)
-        self.assertIn("| 2026-05-27 | 12:20 | 支出 | 18.00 | 餐饮 | 支付宝 |  | 已记录 | 兰州拉面<br>午饭", content)
+        self.assertIn("| 2026-05-27 | 12:20 | 支出 | 18.00 | 餐饮 | 支付宝 |  | 已记录 | 兰州拉面<br>午饭 | <!-- olh", content)
         self.assertIn("| 2026-05-27 | 18:30 | 借出 | 6.50 | 借贷 | 微信 | 张三 | 已记录 | 临时周转", content)
+        self.assertNotIn("午饭<!--", content)
         self.assertIn("record_id=fin-20260527-test", content)
         self.assertNotIn("sender_id:", content)
 
@@ -158,7 +159,8 @@ class LifeWriterTests(unittest.TestCase):
         self.assertEqual(result.relative_path, "生活/健康/2026-05 健康.md")
         self.assertEqual(result.kind, "health")
         self.assertIn("type: life-health", content)
-        self.assertIn("| 2026-05-27 | 21:30 | 跑步 |  |  | 30 | 5 | 已记录 | 操场", content)
+        self.assertIn("| 2026-05-27 | 21:30 | 跑步 |  |  | 30 | 5 | 已记录 | 操场 | <!-- olh", content)
+        self.assertNotIn("操场<!--", content)
         self.assertIn("record_id=health-20260527-test", content)
 
     def test_write_summary_document_uses_summary_subfolder(self):
@@ -230,7 +232,7 @@ class LifeWriterTests(unittest.TestCase):
         self.assertIn("## 短期计划", content)
         self.assertIn("整理 AstrBot 插件配置", content)
         self.assertIn("record_id=plan-20260528-test", content)
-        self.assertIn("| 整理 AstrBot 插件配置 | 已完成 | 2026-05-29 | 2026-05-28 17:00 | 2026-05-28 |", content)
+        self.assertIn("| 整理 AstrBot 插件配置 | 已完成 | 2026-05-29 | 2026-05-28 17:00 | 2026-05-28 |  | <!-- olh", content)
 
     def test_append_plan_record_leaves_empty_target_cells_blank(self):
         with tempfile.TemporaryDirectory() as tmp:
