@@ -18,6 +18,7 @@ from astrbot_plugin_obsidian_life_hub.native_future_task import (
     looks_like_incomplete_native_future_task,
     parse_native_future_task,
 )
+from astrbot_plugin_obsidian_life_hub.report_renderer import markdown_to_push_text
 from astrbot_plugin_obsidian_life_hub.summary import build_day_data_text, generate_daily_summary_text, generate_weekly_summary_text
 from astrbot_plugin_obsidian_life_hub.utils import (
     command_body,
@@ -639,6 +640,39 @@ class BriefingTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("出门前", text)
         self.assertNotIn("今日建议", text)
         self.assertNotIn("财务简讯", text)
+
+
+class ReportRendererTests(unittest.IsolatedAsyncioTestCase):
+    def test_markdown_to_push_text_removes_heading_marks_and_table_syntax(self):
+        text = markdown_to_push_text(
+            "# 🗓️ 2026-05-30 周六\n\n"
+            "## ✅ 待办\n\n"
+            "| 内容 | 时间 |\n"
+            "|---|---|\n"
+            "| 交材料 | 20:00 |\n"
+        )
+
+        self.assertIn("🗓️ 2026-05-30 周六", text)
+        self.assertIn("✅ 待办", text)
+        self.assertIn("- 交材料  时间: 20:00", text)
+        self.assertNotIn("#", text)
+        self.assertNotIn("|---|", text)
+
+    def test_markdown_to_push_text_formats_summary_finance_table(self):
+        text = markdown_to_push_text(
+            "# 🌙 今日总结\n\n"
+            "## 💰 财务简讯\n"
+            "| 范围 | 支出 | 收入 |\n"
+            "|---|---:|---:|\n"
+            "| 今日 | ¥13.00 | ¥0.00 |\n"
+            "| 本周 | ¥150.00 | ¥500.00 |\n"
+        )
+
+        self.assertIn("🌙 今日总结", text)
+        self.assertIn("💰 财务简讯", text)
+        self.assertIn("- 今日  支出: ¥13.00  收入: ¥0.00", text)
+        self.assertIn("- 本周  支出: ¥150.00  收入: ¥500.00", text)
+        self.assertNotIn("| 范围 |", text)
 
     async def test_summary_fallback_has_operational_sections(self):
         async def no_llm(_prompt: str) -> None:

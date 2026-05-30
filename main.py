@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import asdict
 from datetime import date, datetime, timedelta
+import inspect
 import json
 from pathlib import Path
 import re
@@ -20,6 +21,7 @@ from .config import LifePluginConfig
 from .database import LifeDatabase
 from .intent import AutoRecordIntent, build_confirmation_candidate_intents, classify_auto_record, classify_auto_record_batch
 from .native_future_task import looks_like_incomplete_native_future_task, parse_native_future_task
+from .report_renderer import markdown_to_push_text
 from .summary import generate_daily_summary_text, generate_diary_draft_text, generate_quote_weekly_text, generate_weekly_summary_text
 from .utils import (
     command_body,
@@ -2033,7 +2035,7 @@ class ObsidianLifeHubPlugin(Star):
 
         if self._scheduled_now("morning", now, self.config.morning_briefing_time):
             text = await self._generate_briefing_for_session(session_id)
-            await self._push_message(session_id, text)
+            await self._push_message(session_id, text, render_report=True)
 
         if self._scheduled_now("evening", now, self.config.evening_checkin_time):
             await self._push_message(session_id, "今天要不要总结？需要的话回复“今日总结”，我会整理待办、财务和日记草稿。")
@@ -2044,7 +2046,7 @@ class ObsidianLifeHubPlugin(Star):
                 date_text=date_text,
                 time_text=time_text,
             )
-            await self._push_message(session_id, text)
+            await self._push_message(session_id, text, render_report=True)
 
         if self._scheduled_now("weekly", now, self.config.weekly_summary_time, weekly_day=self.config.weekly_summary_day):
             start = today - timedelta(days=today.weekday())
@@ -2059,7 +2061,7 @@ class ObsidianLifeHubPlugin(Star):
                 start_date=start_text,
                 end_date=date_text,
             )
-            await self._push_message(session_id, f"{quote_text}\n\n{summary_text}".strip())
+            await self._push_message(session_id, f"{quote_text}\n\n{summary_text}".strip(), render_report=True)
 
     async def _scheduler_session_id(self) -> str:
         configured = str(self.config.push_target_session or "").strip()
@@ -2095,16 +2097,44 @@ class ObsidianLifeHubPlugin(Star):
             self._scheduler_seen = set(sorted(self._scheduler_seen)[-500:])
         return True
 
-    async def _push_message(self, session_id: str, text: str) -> bool:
+    async def _push_message(self, session_id: str, text: str, *, render_report: bool = False) -> bool:
         if not session_id or not text:
             return False
         try:
-            message = _build_message_chain(text)
+            message = await self._build_push_message(text, render_report=render_report)
             await self.context.send_message(session_id, message)
             return True
         except Exception as exc:
             logger.warning(f"[ObsidianLifeHub] push message failed: {safe_error_text(exc)}")
             return False
+
+    async def _build_push_message(self, text: str, *, render_report: bool = False):
+        if not render_report:
+            return _build_message_chain(text)
+
+        image_message = await self._try_render_report_image(text)
+        if image_message is not None:
+            return image_message
+        return _build_message_chain(f"\u200b{markdown_to_push_text(text)}\u200b")
+
+    async def _try_render_report_image(self, text: str):
+        try:
+            renderer = getattr(self, "text_to_image", None)
+            if not callable(renderer):
+                return None
+            try:
+                image_url = renderer(text, return_url=True)
+            except TypeError:
+                image_url = renderer(text)
+            if inspect.isawaitable(image_url):
+                image_url = await image_url
+            image_url = str(image_url or "").strip()
+            if not image_url:
+                return None
+            return _build_image_message_chain(image_url)
+        except Exception as exc:
+            logger.warning(f"[ObsidianLifeHub] report image render failed, fallback to text: {safe_error_text(exc)}")
+            return None
 
     async def _log_conversation(self, event: AstrMessageEvent, role: str):
         message = event_message_text(event)
@@ -2742,3 +2772,37 @@ def _build_message_chain(text: str):
         return MessageChain(text)
     except Exception:
         return text
+
+
+def _build_image_message_chain(image_url: str):
+    try:
+        import astrbot.api.message_components as Comp
+
+        if image_url.startswith(("http://", "https://")):
+            image = _call_first_available(Comp.Image, ("fromURL", "from_url"), image_url)
+        else:
+            image = _call_first_available(Comp.Image, ("fromFileSystem", "from_file_system", "fromPath", "from_path"), image_url)
+        if image is not None:
+            return [image]
+    except Exception:
+        try:
+            from astrbot.core.message.message_event_result import MessageChain
+
+            chain = MessageChain()
+            if image_url.startswith(("http://", "https://")):
+                message = _call_first_available(chain, ("url_image", "image", "file_image"), image_url)
+            else:
+                message = _call_first_available(chain, ("file_image", "image"), image_url)
+            if message is not None:
+                return message
+        except Exception:
+            return None
+    return None
+
+
+def _call_first_available(target: Any, method_names: tuple[str, ...], value: str):
+    for method_name in method_names:
+        method = getattr(target, method_name, None)
+        if callable(method):
+            return method(value)
+    return None
