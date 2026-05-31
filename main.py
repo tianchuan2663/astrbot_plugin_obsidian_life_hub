@@ -2776,27 +2776,17 @@ def _build_message_chain(text: str):
 
 def _build_image_message_chain(image_url: str):
     try:
-        import astrbot.api.message_components as Comp
+        from astrbot.core.message.message_event_result import MessageChain
 
+        chain = MessageChain()
         if image_url.startswith(("http://", "https://")):
-            image = _call_first_available(Comp.Image, ("fromURL", "from_url"), image_url)
+            message = _call_first_available(chain, ("url_image", "image", "file_image"), image_url)
         else:
-            image = _call_first_available(Comp.Image, ("fromFileSystem", "from_file_system", "fromPath", "from_path"), image_url)
-        if image is not None:
-            return [image]
+            message = _call_first_available(chain, ("file_image", "image"), image_url)
+        if message is not None:
+            return message
     except Exception:
-        try:
-            from astrbot.core.message.message_event_result import MessageChain
-
-            chain = MessageChain()
-            if image_url.startswith(("http://", "https://")):
-                message = _call_first_available(chain, ("url_image", "image", "file_image"), image_url)
-            else:
-                message = _call_first_available(chain, ("file_image", "image"), image_url)
-            if message is not None:
-                return message
-        except Exception:
-            return None
+        return None
     return None
 
 
